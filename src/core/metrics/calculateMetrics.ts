@@ -20,14 +20,10 @@ export const calculateMetrics = async (
   progressCallback: RepomixProgressCallback,
   config: RepomixConfigMerged,
 ): Promise<CalculateMetricsResult> => {
-  const tokenCounter = new TokenCounter(config.tokenCount.encoding);
-
   progressCallback('Calculating metrics...');
-  const fileMetrics = await calculateAllFileMetrics(processedFiles, tokenCounter, progressCallback);
+  const fileMetrics = await calculateAllFileMetrics(processedFiles, config.tokenCount.encoding, progressCallback);
 
-  const result = aggregateMetrics(fileMetrics, processedFiles, output, tokenCounter);
-
-  tokenCounter.free();
+  const result = aggregateMetrics(fileMetrics, processedFiles, output, config.tokenCount.encoding);
 
   return result;
 };

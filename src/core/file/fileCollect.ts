@@ -1,54 +1,107 @@
-import * as fs from 'node:fs/promises';
 import path from 'node:path';
-import iconv from 'iconv-lite';
-import { isBinary } from 'istextorbinary';
-import jschardet from 'jschardet';
-import pMap from 'p-map';
+import { fileURLToPath } from 'node:url';
+import { Piscina } from 'piscina';
 import { logger } from '../../shared/logger.js';
-import { getProcessConcurrency } from '../../shared/processConcurrency.js';
+import { getWorkerThreadCount } from '../../shared/processConcurrency.js';
 import type { RawFile } from './fileTypes.js';
+import type { WorkerPoolConfig } from './workers/types.js';
 
-export const collectFiles = async (filePaths: string[], rootDir: string): Promise<RawFile[]> => {
-  const rawFiles = await pMap(
-    filePaths,
-    async (filePath) => {
-      const fullPath = path.resolve(rootDir, filePath);
-      const content = await readRawFile(fullPath);
-      if (content) {
-        return { path: filePath, content };
-      }
-      return null;
-    },
-    {
-      concurrency: getProcessConcurrency(),
-    },
-  );
+// Worker pool singleton
+let workerPool: Piscina | null = null;
 
-  return rawFiles.filter((file): file is RawFile => file != null);
-};
-
-const readRawFile = async (filePath: string): Promise<string | null> => {
-  if (isBinary(filePath)) {
-    logger.debug(`Skipping binary file: ${filePath}`);
-    return null;
+/**
+ * Initialize the worker pool with the given configuration
+ */
+const initializeWorkerPool = (config?: WorkerPoolConfig): Piscina => {
+  if (workerPool) {
+    return workerPool;
   }
 
-  logger.trace(`Reading file: ${filePath}`);
+  const { minThreads, maxThreads } = getWorkerThreadCount();
+  logger.trace(`Initializing worker pool with min=${minThreads}, max=${maxThreads} threads`);
+
+  workerPool = new Piscina({
+    filename: path.resolve(path.dirname(fileURLToPath(import.meta.url)), './workers/fileCollectWorker.js'),
+    minThreads,
+    maxThreads,
+    idleTimeout: 5000
+  });
+
+  return workerPool;
+};
+
+/**
+ * Process files in chunks to maintain progress visibility and prevent memory issues
+ */
+async function processFileChunks(
+  pool: Piscina,
+  tasks: Array<{ filePath: string; rootDir: string }>,
+  chunkSize = 100,
+): Promise<RawFile[]> {
+  const results: RawFile[] = [];
+  let completedTasks = 0;
+  const totalTasks = tasks.length;
+
+  // Process files in chunks
+  for (let i = 0; i < tasks.length; i += chunkSize) {
+    const chunk = tasks.slice(i, i + chunkSize);
+    const chunkPromises = chunk.map((task) => {
+      return pool.run(task).then((result) => {
+        completedTasks++;
+        const percent = ((completedTasks / totalTasks) * 100).toFixed(1);
+        logger.trace(`Processing files... (${completedTasks}/${totalTasks}) ${percent}% ${task.filePath}`);
+        return result;
+      });
+    });
+
+    const chunkResults = await Promise.all(chunkPromises);
+    results.push(...chunkResults.filter((file): file is RawFile => file !== null));
+
+    // Allow event loop to process other tasks
+    await new Promise((resolve) => setTimeout(resolve, 0));
+  }
+
+  return results;
+}
+
+/**
+ * Collects and reads files using a worker thread pool
+ */
+export const collectFiles = async (
+  filePaths: string[],
+  rootDir: string,
+): Promise<RawFile[]> => {
+  const pool = initializeWorkerPool();
+  const tasks = filePaths.map((filePath) => ({
+    filePath,
+    rootDir,
+  }));
 
   try {
-    const buffer = await fs.readFile(filePath);
+    const startTime = process.hrtime.bigint();
+    logger.trace(`Starting file collection for ${filePaths.length} files using worker pool`);
 
-    if (isBinary(null, buffer)) {
-      logger.debug(`Skipping binary file (content check): ${filePath}`);
-      return null;
-    }
+    // Process files in chunks
+    const results = await processFileChunks(pool, tasks);
 
-    const encoding = jschardet.detect(buffer).encoding || 'utf-8';
-    const content = iconv.decode(buffer, encoding);
+    const endTime = process.hrtime.bigint();
+    const duration = Number(endTime - startTime) / 1e6; // Convert to milliseconds
+    logger.trace(`File collection completed in ${duration.toFixed(2)}ms`);
 
-    return content;
+    return results;
   } catch (error) {
-    logger.warn(`Failed to read file: ${filePath}`, error);
-    return null;
+    logger.error('Error during file collection:', error);
+    throw error;
+  }
+};
+
+/**
+ * Cleanup worker pool resources
+ */
+export const cleanupWorkerPool = async (): Promise<void> => {
+  if (workerPool) {
+    logger.trace('Cleaning up worker pool');
+    await workerPool.destroy();
+    workerPool = null;
   }
 };
