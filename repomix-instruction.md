@@ -1,9 +1,9 @@
 # Coding Guidelines
-- Follow the Airbnb JavaScript Style Guide
-- Suggest splitting files into smaller, focused units when appropriate
-  - Keep code files under 250 lines, if the file is over 250 lines, split it into multiple files based on the functionality.
-- Add comments for non-obvious logic. Keep all text in English
-- All new features should have corresponding unit tests
+- Follow the Airbnb JavaScript Style Guide.
+- Split files into smaller, focused units when appropriate:
+  - Aim to keep code files under 250 lines. If a file exceeds 250 lines, split it into multiple files based on functionality.
+- Add comments to clarify non-obvious logic. **Ensure all comments are written in English.**
+- Provide corresponding unit tests for all new features.
 
 ## Dependencies and Testing
 - Inject dependencies through a deps object parameter for testability
