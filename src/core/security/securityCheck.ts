@@ -18,12 +18,12 @@ let workerPool: Piscina | null = null;
 /**
  * Initialize the worker pool
  */
-const initializeWorkerPool = (): Piscina => {
+const initializeWorkerPool = (numOfTasks: number): Piscina => {
   if (workerPool) {
     return workerPool;
   }
 
-  const { minThreads, maxThreads } = getWorkerThreadCount();
+  const { minThreads, maxThreads } = getWorkerThreadCount(numOfTasks);
   logger.trace(`Initializing security check worker pool with min=${minThreads}, max=${maxThreads} threads`);
 
   workerPool = new Piscina({
@@ -88,7 +88,7 @@ export const runSecurityCheck = async (
   rawFiles: RawFile[],
   progressCallback: RepomixProgressCallback = () => {},
 ): Promise<SuspiciousFileResult[]> => {
-  const pool = initializeWorkerPool();
+  const pool = initializeWorkerPool(rawFiles.length);
   const tasks = rawFiles.map((file) => ({
     filePath: file.path,
     content: file.content,

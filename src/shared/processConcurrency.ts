@@ -10,10 +10,16 @@ export const getProcessConcurrency = (): number => {
 /**
  * Get the minimum and maximum number of threads for worker pools
  */
-export const getWorkerThreadCount = (): { minThreads: number; maxThreads: number } => {
+export const getWorkerThreadCount = (numOfTasks: number): { minThreads: number; maxThreads: number } => {
   const processConcurrency = getProcessConcurrency();
+
+  const minThreads = 1;
+
+  // Limit max threads based on number of tasks
+  const maxThreads = Math.max(minThreads, Math.min(processConcurrency, Math.floor(numOfTasks / 100)));
+
   return {
-    minThreads: Math.max(1, Math.floor(processConcurrency / 2)),
-    maxThreads: processConcurrency,
+    minThreads,
+    maxThreads: 1,
   };
 };

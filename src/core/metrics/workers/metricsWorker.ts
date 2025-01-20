@@ -2,7 +2,7 @@ import type { TiktokenEncoding } from 'tiktoken';
 import { logger } from '../../../shared/logger.js';
 import type { ProcessedFile } from '../../file/fileTypes.js';
 import { TokenCounter } from '../../tokenCount/tokenCount.js';
-import type { FileMetrics } from '../calculateIndividualFileMetrics.js';
+import type { FileMetrics } from './types.js';
 
 interface MetricsWorkerInput {
   file: ProcessedFile;
@@ -30,14 +30,21 @@ const getTokenCounter = (encoding: TiktokenEncoding): TokenCounter => {
 export default async ({ file, index, totalFiles, encoding }: MetricsWorkerInput): Promise<FileMetrics> => {
   const processStartAt = process.hrtime.bigint();
 
-  const counter = getTokenCounter(encoding);
-  const charCount = file.content.length;
-  const tokenCount = counter.countTokens(file.content, file.path);
-
   const processEndAt = process.hrtime.bigint();
   logger.trace(
     `Calculated metrics for ${file.path}. Took: ${(Number(processEndAt - processStartAt) / 1e6).toFixed(2)}ms`,
   );
+
+  return calculateIndividualFileMetrics(file, encoding);
+};
+
+export const calculateIndividualFileMetrics = async (
+  file: ProcessedFile,
+  encoding: TiktokenEncoding,
+): Promise<FileMetrics> => {
+  const charCount = file.content.length;
+  const tokenCounter = getTokenCounter(encoding);
+  const tokenCount = tokenCounter.countTokens(file.content, file.path);
 
   return { path: file.path, charCount, tokenCount };
 };

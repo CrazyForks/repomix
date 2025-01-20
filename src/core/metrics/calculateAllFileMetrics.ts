@@ -7,8 +7,7 @@ import { logger } from '../../shared/logger.js';
 import { getWorkerThreadCount } from '../../shared/processConcurrency.js';
 import type { RepomixProgressCallback } from '../../shared/types.js';
 import type { ProcessedFile } from '../file/fileTypes.js';
-import type { TokenCounter } from '../tokenCount/tokenCount.js';
-import type { FileMetrics } from './calculateIndividualFileMetrics.js';
+import type { FileMetrics } from './workers/types.js';
 
 // Worker pool singleton
 let workerPool: Piscina | null = null;
@@ -16,12 +15,12 @@ let workerPool: Piscina | null = null;
 /**
  * Initialize the worker pool
  */
-const initializeWorkerPool = (): Piscina => {
+const initializeWorkerPool = (numOfTasks: number): Piscina => {
   if (workerPool) {
     return workerPool;
   }
 
-  const { minThreads, maxThreads } = getWorkerThreadCount();
+  let { minThreads, maxThreads } = getWorkerThreadCount(numOfTasks);
   logger.trace(`Initializing metrics worker pool with min=${minThreads}, max=${maxThreads} threads`);
 
   workerPool = new Piscina({
@@ -76,7 +75,7 @@ export const calculateAllFileMetrics = async (
   tokenCounterEncoding: TiktokenEncoding,
   progressCallback: RepomixProgressCallback,
 ): Promise<FileMetrics[]> => {
-  const pool = initializeWorkerPool();
+  const pool = initializeWorkerPool(processedFiles.length);
   const tasks = processedFiles.map((file, index) => ({
     file,
     index,

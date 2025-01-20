@@ -15,12 +15,12 @@ let workerPool: Piscina | null = null;
 /**
  * Initialize the worker pool
  */
-const initializeWorkerPool = (): Piscina => {
+const initializeWorkerPool = (numOfTasks: number): Piscina => {
   if (workerPool) {
     return workerPool;
   }
 
-  const { minThreads, maxThreads } = getWorkerThreadCount();
+  const { minThreads, maxThreads } = getWorkerThreadCount(numOfTasks);
   logger.trace(`Initializing file process worker pool with min=${minThreads}, max=${maxThreads} threads`);
 
   workerPool = new Piscina({
@@ -75,7 +75,7 @@ export const processFiles = async (
   config: RepomixConfigMerged,
   progressCallback: RepomixProgressCallback,
 ): Promise<ProcessedFile[]> => {
-  const pool = initializeWorkerPool();
+  const pool = initializeWorkerPool(rawFiles.length);
   const tasks = rawFiles.map((rawFile, index) => ({
     rawFile,
     index,

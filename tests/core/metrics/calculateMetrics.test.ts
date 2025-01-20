@@ -1,6 +1,5 @@
 import { type Mock, describe, expect, it, vi } from 'vitest';
 import type { ProcessedFile } from '../../../src/core/file/fileTypes.js';
-import { aggregateMetrics } from '../../../src/core/metrics/aggregateMetrics.js';
 import { calculateAllFileMetrics } from '../../../src/core/metrics/calculateAllFileMetrics.js';
 import { calculateMetrics } from '../../../src/core/metrics/calculateMetrics.js';
 import { TokenCounter } from '../../../src/core/tokenCount/tokenCount.js';
@@ -45,7 +44,6 @@ describe('calculateMetrics', () => {
         'file2.txt': 20,
       },
     };
-    (aggregateMetrics as unknown as Mock).mockReturnValue(aggregatedResult);
 
     const config = createMockConfig();
 
@@ -53,7 +51,6 @@ describe('calculateMetrics', () => {
 
     expect(progressCallback).toHaveBeenCalledWith('Calculating metrics...');
     expect(calculateAllFileMetrics).toHaveBeenCalledWith(processedFiles, mockTokenCounter, progressCallback);
-    expect(aggregateMetrics).toHaveBeenCalledWith(fileMetrics, processedFiles, output, mockTokenCounter);
     expect(mockTokenCounter.free).toHaveBeenCalled();
     expect(result).toEqual(aggregatedResult);
   });

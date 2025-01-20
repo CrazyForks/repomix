@@ -1,10 +1,8 @@
-import { TiktokenEncoding } from 'tiktoken';
 import type { RepomixConfigMerged } from '../../config/configSchema.js';
 import type { RepomixProgressCallback } from '../../shared/types.js';
 import type { ProcessedFile } from '../file/fileTypes.js';
-import { TokenCounter } from '../tokenCount/tokenCount.js';
-import { aggregateMetrics } from './aggregateMetrics.js';
 import { calculateAllFileMetrics } from './calculateAllFileMetrics.js';
+import { countTokensParallel, cleanupWorkerPool } from './countTokenParallel.js';
 
 export interface CalculateMetricsResult {
   totalFiles: number;
@@ -21,9 +19,29 @@ export const calculateMetrics = async (
   config: RepomixConfigMerged,
 ): Promise<CalculateMetricsResult> => {
   progressCallback('Calculating metrics...');
-  const fileMetrics = await calculateAllFileMetrics(processedFiles, config.tokenCount.encoding, progressCallback);
 
-  const result = aggregateMetrics(fileMetrics, processedFiles, output, config.tokenCount.encoding);
+  const [fileMetrics, totalTokens] = await Promise.all([
+    calculateAllFileMetrics(processedFiles, config.tokenCount.encoding, progressCallback),
+    countTokensParallel(output, config.tokenCount.encoding),
+  ]);
 
-  return result;
+  const totalFiles = processedFiles.length;
+  const totalCharacters = output.length;
+
+  const fileCharCounts: Record<string, number> = {};
+  const fileTokenCounts: Record<string, number> = {};
+  for (const file of fileMetrics) {
+    fileCharCounts[file.path] = file.charCount;
+    fileTokenCounts[file.path] = file.tokenCount;
+  }
+
+  cleanupWorkerPool();
+
+  return {
+    totalFiles,
+    totalCharacters,
+    totalTokens,
+    fileCharCounts,
+    fileTokenCounts,
+  };
 };

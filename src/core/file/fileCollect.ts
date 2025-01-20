@@ -12,12 +12,12 @@ let workerPool: Piscina | null = null;
 /**
  * Initialize the worker pool with the given configuration
  */
-const initializeWorkerPool = (config?: WorkerPoolConfig): Piscina => {
+const initializeWorkerPool = (numOfTasks: number): Piscina => {
   if (workerPool) {
     return workerPool;
   }
 
-  const { minThreads, maxThreads } = getWorkerThreadCount();
+  const { minThreads, maxThreads } = getWorkerThreadCount( numOfTasks);
   logger.trace(`Initializing worker pool with min=${minThreads}, max=${maxThreads} threads`);
 
   workerPool = new Piscina({
@@ -71,7 +71,7 @@ export const collectFiles = async (
   filePaths: string[],
   rootDir: string,
 ): Promise<RawFile[]> => {
-  const pool = initializeWorkerPool();
+  const pool = initializeWorkerPool(filePaths.length);
   const tasks = filePaths.map((filePath) => ({
     filePath,
     rootDir,
