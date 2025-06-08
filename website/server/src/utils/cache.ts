@@ -1,13 +1,17 @@
-import pako from 'pako';
+import { promisify } from 'node:util';
+import * as zlib from 'node:zlib';
 import type { PackOptions } from '../types.js';
 
-interface CacheEntry<T> {
+const inflateAsync = promisify(zlib.inflate);
+const deflateAsync = promisify(zlib.deflate);
+
+interface CacheEntry {
   value: Uint8Array; // Compressed data
   timestamp: number;
 }
 
 export class RequestCache<T> {
-  private cache: Map<string, CacheEntry<T>> = new Map();
+  private cache: Map<string, CacheEntry> = new Map();
   private readonly ttl: number;
 
   constructor(ttlInSeconds = 60) {
@@ -17,7 +21,7 @@ export class RequestCache<T> {
     setInterval(() => this.cleanup(), ttlInSeconds * 1000);
   }
 
-  get(key: string): T | undefined {
+  async get(key: string): Promise<T | undefined> {
     const entry = this.cache.get(key);
     if (!entry) {
       return undefined;
@@ -31,8 +35,8 @@ export class RequestCache<T> {
 
     try {
       // Decompress and return the data
-      const decompressedData = pako.inflate(entry.value, { to: 'string' });
-      return JSON.parse(decompressedData);
+      const decompressedData = await inflateAsync(entry.value);
+      return JSON.parse(decompressedData.toString('utf8'));
     } catch (error) {
       console.error('Error decompressing cache entry:', error);
       this.cache.delete(key);
@@ -40,11 +44,11 @@ export class RequestCache<T> {
     }
   }
 
-  set(key: string, value: T): void {
+  async set(key: string, value: T): Promise<void> {
     try {
       // Convert data to JSON string and compress
       const jsonString = JSON.stringify(value);
-      const compressedData = pako.deflate(jsonString);
+      const compressedData = await deflateAsync(Buffer.from(jsonString, 'utf8'));
 
       this.cache.set(key, {
         value: compressedData,

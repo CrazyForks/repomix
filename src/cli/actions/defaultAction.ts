@@ -64,7 +64,12 @@ export const runDefaultAction = async (
   logger.log('');
 
   if (config.output.topFilesLength > 0) {
-    printTopFiles(packResult.fileCharCounts, packResult.fileTokenCounts, config.output.topFilesLength);
+    printTopFiles(
+      packResult.fileCharCounts,
+      packResult.fileTokenCounts,
+      config.output.topFilesLength,
+      packResult.totalTokens,
+    );
     logger.log('');
   }
 

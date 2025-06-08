@@ -2,7 +2,10 @@ import { type Mock, describe, expect, it, vi } from 'vitest';
 import type { ProcessedFile } from '../../../src/core/file/fileTypes.js';
 import type { GitDiffResult } from '../../../src/core/git/gitDiffHandle.js';
 import { TokenCounter } from '../../../src/core/metrics/TokenCounter.js';
-import { calculateAllFileMetrics } from '../../../src/core/metrics/calculateAllFileMetrics.js';
+import {
+  calculateAllFileMetrics,
+  calculateSelectiveFileMetrics,
+} from '../../../src/core/metrics/calculateAllFileMetrics.js';
 import { calculateMetrics } from '../../../src/core/metrics/calculateMetrics.js';
 import type { RepomixProgressCallback } from '../../../src/shared/types.js';
 import { createMockConfig } from '../../testing/testUtils.js';
@@ -16,7 +19,10 @@ vi.mock('../../../src/core/metrics/TokenCounter.js', () => {
   };
 });
 vi.mock('../../../src/core/metrics/aggregateMetrics.js');
-vi.mock('../../../src/core/metrics/calculateAllFileMetrics.js');
+vi.mock('../../../src/core/metrics/calculateAllFileMetrics.js', () => ({
+  calculateAllFileMetrics: vi.fn(),
+  calculateSelectiveFileMetrics: vi.fn(),
+}));
 
 describe('calculateMetrics', () => {
   it('should calculate metrics and return the result', async () => {
@@ -31,7 +37,7 @@ describe('calculateMetrics', () => {
       { path: 'file1.txt', charCount: 100, tokenCount: 10 },
       { path: 'file2.txt', charCount: 200, tokenCount: 20 },
     ];
-    (calculateAllFileMetrics as unknown as Mock).mockResolvedValue(fileMetrics);
+    (calculateSelectiveFileMetrics as unknown as Mock).mockResolvedValue(fileMetrics);
 
     const aggregatedResult = {
       totalFiles: 2,
@@ -54,11 +60,17 @@ describe('calculateMetrics', () => {
 
     const result = await calculateMetrics(processedFiles, output, progressCallback, config, gitDiffResult, {
       calculateAllFileMetrics,
+      calculateSelectiveFileMetrics,
       calculateOutputMetrics: () => Promise.resolve(30),
     });
 
     expect(progressCallback).toHaveBeenCalledWith('Calculating metrics...');
-    expect(calculateAllFileMetrics).toHaveBeenCalledWith(processedFiles, 'o200k_base', progressCallback);
+    expect(calculateSelectiveFileMetrics).toHaveBeenCalledWith(
+      processedFiles,
+      ['file2.txt', 'file1.txt'], // sorted by character count desc
+      'o200k_base',
+      progressCallback,
+    );
     expect(result).toEqual(aggregatedResult);
   });
 });

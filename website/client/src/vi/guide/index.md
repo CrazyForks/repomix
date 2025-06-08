@@ -2,11 +2,17 @@
 
 <script setup>
 import HomeBadges from '../../../components/HomeBadges.vue'
+import YouTubeVideo from '../../../components/YouTubeVideo.vue'
+import { VIDEO_IDS } from '../../../utils/videos'
 </script>
 
 Repomix là một công cụ đóng gói toàn bộ kho lưu trữ của bạn thành một tệp duy nhất, thân thiện với AI. Nó được thiết kế để giúp bạn cung cấp codebase cho các Mô hình Ngôn ngữ Lớn (LLMs) như ChatGPT, DeepSeek, Perplexity, Gemini, Gemma, Llama, Grok, và nhiều mô hình khác.
 
+<YouTubeVideo :videoId="VIDEO_IDS.REPOMIX_DEMO" />
+
 <HomeBadges />
+
+[![Sponsors](https://cdn.jsdelivr.net/gh/yamadashy/sponsor-list/sponsors/sponsors.png)](https://github.com/sponsors/yamadashy)
 
 ## Bắt đầu nhanh
 

@@ -54,7 +54,7 @@ export async function processZipFile(
   );
 
   // Check if the result is already cached
-  const cachedResult = cache.get(cacheKey);
+  const cachedResult = await cache.get(cacheKey);
   if (cachedResult) {
     return cachedResult;
   }
@@ -123,7 +123,7 @@ export async function processZipFile(
     };
 
     // Save the result to cache
-    cache.set(cacheKey, packResultData);
+    await cache.set(cacheKey, packResultData);
 
     return packResultData;
   } catch (error) {

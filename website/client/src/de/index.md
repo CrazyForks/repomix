@@ -24,7 +24,14 @@ features:
 
 ---
 
+<script setup>
+import YouTubeVideo from '../../components/YouTubeVideo.vue'
+import { VIDEO_IDS } from '../../utils/videos'
+</script>
+
 <div class="cli-section">
+
+[![Sponsors](https://cdn.jsdelivr.net/gh/yamadashy/sponsor-list/sponsors/sponsors.png)](https://github.com/sponsors/yamadashy)
 
 ## 🏆 Nominierung für die Open Source Awards
 
@@ -33,6 +40,12 @@ Wir fühlen uns geehrt! Repomix wurde in der Kategorie **Powered by AI** für di
 Dies wäre ohne Sie alle, die Repomix nutzen und unterstützen, nicht möglich gewesen. Vielen Dank!
 
 Wenn Repomix Ihnen bei der Analyse oder Paketierung von Codebasen für KI-Tools geholfen hat, würden wir uns über Ihre Stimme in der Kategorie **Powered by AI** freuen.
+
+## Was ist Repomix?
+
+Repomix ist ein leistungsstarkes Tool, das Ihre gesamte Codebasis in eine einzige KI-freundliche Datei paketiert. Ob Sie an Code-Reviews, Refactoring arbeiten oder KI-Unterstützung für Ihr Projekt benötigen, Repomix macht es einfach, den gesamten Repository-Kontext mit KI-Tools zu teilen.
+
+<YouTubeVideo :videoId="VIDEO_IDS.REPOMIX_DEMO" />
 
 ## Schnellstart
 
@@ -190,6 +203,18 @@ Erstellen Sie eine `repomix.config.json` für dauerhafte Einstellungen:
   }
 }
 ```
+
+## Power-User-Leitfaden
+
+Repomix bietet leistungsstarke Funktionen für fortgeschrittene Anwendungsfälle. Hier sind einige wichtige Leitfäden für Power-User:
+
+- **[MCP-Server](./guide/mcp-server)** - Model Context Protocol-Integration für KI-Assistenten
+- **[GitHub Actions](./guide/github-actions)** - Automatisierung der Codebase-Paketierung in CI/CD-Workflows
+- **[Code-Komprimierung](./guide/code-compress)** - Tree-sitter-basierte intelligente Komprimierung (~70% Token-Reduktion)
+- **[Als Bibliothek verwenden](./guide/development/using-repomix-as-a-library)** - Repomix in Node.js-Anwendungen integrieren
+- **[Benutzerdefinierte Anweisungen](./guide/custom-instructions)** - Benutzerdefinierte Prompts und Anweisungen zu Ausgaben hinzufügen
+- **[Sicherheitsfunktionen](./guide/security)** - Eingebaute Secretlint-Integration und Sicherheitsprüfungen
+- **[Best Practices](./guide/tips/best-practices)** - KI-Workflows mit bewährten Strategien optimieren
 
 ### Weitere Beispiele
 ::: tip Benötigen Sie weitere Hilfe? 💡

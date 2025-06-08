@@ -35,7 +35,7 @@ export async function processRemoteRepo(
   const cacheKey = generateCacheKey(validatedData.url, validatedData.format, validatedData.options, 'url');
 
   // Check if the result is already cached
-  const cachedResult = cache.get(cacheKey);
+  const cachedResult = await cache.get(cacheKey);
   if (cachedResult) {
     return cachedResult;
   }
@@ -100,7 +100,7 @@ export async function processRemoteRepo(
     };
 
     // Save the result to cache
-    cache.set(cacheKey, packResultData);
+    await cache.set(cacheKey, packResultData);
 
     return packResultData;
   } catch (error) {

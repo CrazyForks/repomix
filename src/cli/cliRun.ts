@@ -140,6 +140,7 @@ export const run = async () => {
     await program.parseAsync(process.argv);
   } catch (error) {
     handleError(error);
+    process.exit(1);
   }
 };
 

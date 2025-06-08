@@ -49,6 +49,8 @@
 It is perfect for when you need to feed your codebase to Large Language Models (LLMs) or other AI tools like Claude,
 ChatGPT, DeepSeek, Perplexity, Gemini, Gemma, Llama, Grok, and more.
 
+[![Sponsors](https://cdn.jsdelivr.net/gh/yamadashy/sponsor-list/sponsors/sponsors.png)](https://github.com/sponsors/yamadashy)
+
 ## 🏆 Open Source Awards Nomination
 
 We're honored! Repomix has been nominated for the **Powered by AI** category at the [JSNation Open Source Awards 2025](https://osawards.com/javascript/).
@@ -1252,6 +1254,7 @@ We welcome contributions from the community! To get started, please refer to our
 ### Repomix Website ([repomix.com](https://repomix.com/))
 
 - **Data Collection**: The Repomix website uses **Google Analytics** to collect usage data, such as page views and user interactions. This helps us understand how the website is used and improve the user experience.
+- **File Processing**: When uploading ZIP files or folders, your files are temporarily stored on our servers for processing. All uploaded files and processed data are automatically deleted immediately after processing is complete.
 
 ### Repomix Browser Extension
 

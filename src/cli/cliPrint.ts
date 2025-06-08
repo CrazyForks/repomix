@@ -22,8 +22,8 @@ export const printSummary = (packResult: PackResult, config: RepomixConfigMerged
   logger.log(pc.white('📊 Pack Summary:'));
   logger.log(pc.dim('────────────────'));
   logger.log(`${pc.white('  Total Files:')} ${pc.white(packResult.totalFiles.toLocaleString())} files`);
-  logger.log(`${pc.white('  Total Chars:')} ${pc.white(packResult.totalCharacters.toLocaleString())} chars`);
   logger.log(`${pc.white(' Total Tokens:')} ${pc.white(packResult.totalTokens.toLocaleString())} tokens`);
+  logger.log(`${pc.white('  Total Chars:')} ${pc.white(packResult.totalCharacters.toLocaleString())} chars`);
   logger.log(`${pc.white('       Output:')} ${pc.white(config.output.filePath)}`);
   logger.log(`${pc.white('     Security:')} ${pc.white(securityCheckMessage)}`);
 
@@ -84,24 +84,26 @@ export const printTopFiles = (
   fileCharCounts: Record<string, number>,
   fileTokenCounts: Record<string, number>,
   topFilesLength: number,
+  totalTokens: number,
 ) => {
   const topFilesLengthStrLen = topFilesLength.toString().length;
-  logger.log(pc.white(`📈 Top ${topFilesLength} Files by Character Count and Token Count:`));
+  logger.log(pc.white(`📈 Top ${topFilesLength} Files by Token Count:`));
   logger.log(pc.dim(`─────────────────────────────────────────────────${'─'.repeat(topFilesLengthStrLen)}`));
 
-  const topFiles = Object.entries(fileCharCounts)
+  // Filter files that have token counts (top candidates by char count)
+  const filesWithTokenCounts = Object.entries(fileTokenCounts)
+    .filter(([, tokenCount]) => tokenCount > 0)
     .sort((a, b) => b[1] - a[1])
     .slice(0, topFilesLength);
 
-  // Calculate total token count
-  const totalTokens = Object.values(fileTokenCounts).reduce((sum, count) => sum + count, 0);
+  // Use the actual total tokens from the entire output
 
-  topFiles.forEach(([filePath, charCount], index) => {
-    const tokenCount = fileTokenCounts[filePath];
+  filesWithTokenCounts.forEach(([filePath, tokenCount], index) => {
+    const charCount = fileCharCounts[filePath];
     const percentageOfTotal = totalTokens > 0 ? Number(((tokenCount / totalTokens) * 100).toFixed(1)) : 0;
     const indexString = `${index + 1}.`.padEnd(3, ' ');
     logger.log(
-      `${pc.white(`${indexString}`)} ${pc.white(filePath)} ${pc.dim(`(${charCount.toLocaleString()} chars, ${tokenCount.toLocaleString()} tokens, ${percentageOfTotal}%)`)}`,
+      `${pc.white(`${indexString}`)} ${pc.white(filePath)} ${pc.dim(`(${tokenCount.toLocaleString()} tokens, ${charCount.toLocaleString()} chars, ${percentageOfTotal}%)`)}`,
     );
   });
 };

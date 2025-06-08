@@ -1,10 +1,12 @@
 {
+  "name": "repomix-website-server",
   "private": true,
   "type": "module",
   "scripts": {
     "dev": "PORT=8080 tsx watch src/index.ts",
     "build": "tsc",
-    "lint": "tsc --noEmit",
+    "lint": "npm run lint-tsc",
+    "lint-tsc": "tsc --noEmit",
     "start": "node dist/index.js",
     "clean": "rimraf dist",
     "cloud-deploy": "gcloud builds submit --config=cloudbuild.yaml ."
@@ -14,7 +16,6 @@
     "@hono/node-server": "^1.13.8",
     "adm-zip": "^0.5.16",
     "hono": "^4.6.20",
-    "pako": "^2.1.0",
     "repomix": "^0.3.7",
     "winston": "^3.17.0",
     "zod": "^3.24.1"
@@ -22,7 +23,6 @@
   "devDependencies": {
     "@types/adm-zip": "^0.5.7",
     "@types/node": "^22.13.0",
-    "@types/pako": "^2.0.3",
     "rimraf": "^6.0.1",
     "tsx": "^4.19.2",
     "typescript": "^5.7.3"

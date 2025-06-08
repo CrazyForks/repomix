@@ -58,16 +58,16 @@
       </div>
 
       <TryItPackOptions
-        v-model:format="inputFormat"
-        v-model:include-patterns="inputIncludePatterns"
-        v-model:ignore-patterns="inputIgnorePatterns"
-        v-model:file-summary="inputFileSummary"
-        v-model:directory-structure="inputDirectoryStructure"
-        v-model:remove-comments="inputRemoveComments"
-        v-model:remove-empty-lines="inputRemoveEmptyLines"
-        v-model:show-line-numbers="inputShowLineNumbers"
-        v-model:output-parsable="inputOutputParsable"
-        v-model:compress="inputCompress"
+        v-model:format="packOptions.format"
+        v-model:include-patterns="packOptions.includePatterns"
+        v-model:ignore-patterns="packOptions.ignorePatterns"
+        v-model:file-summary="packOptions.fileSummary"
+        v-model:directory-structure="packOptions.directoryStructure"
+        v-model:remove-comments="packOptions.removeComments"
+        v-model:remove-empty-lines="packOptions.removeEmptyLines"
+        v-model:show-line-numbers="packOptions.showLineNumbers"
+        v-model:output-parsable="packOptions.outputParsable"
+        v-model:compress="packOptions.compress"
       />
 
       <div v-if="hasExecuted">
@@ -84,9 +84,8 @@
 
 <script setup lang="ts">
 import { FolderArchive, FolderOpen, Link2 } from 'lucide-vue-next';
-import { computed, nextTick, onMounted, ref } from 'vue';
-import type { PackResult } from '../api/client';
-import { handlePackRequest } from '../utils/requestHandlers';
+import { nextTick, onMounted } from 'vue';
+import { usePackRequest } from '../../composables/usePackRequest';
 import { isValidRemoteValue } from '../utils/validation';
 import PackButton from './PackButton.vue';
 import TryItFileUpload from './TryItFileUpload.vue';
@@ -95,112 +94,40 @@ import TryItPackOptions from './TryItPackOptions.vue';
 import TryItResult from './TryItResult.vue';
 import TryItUrlInput from './TryItUrlInput.vue';
 
-// Form input states
-const inputUrl = ref('');
-const inputFormat = ref<'xml' | 'markdown' | 'plain'>('xml');
-const inputRemoveComments = ref(false);
-const inputRemoveEmptyLines = ref(false);
-const inputShowLineNumbers = ref(false);
-const inputFileSummary = ref(true);
-const inputDirectoryStructure = ref(true);
-const inputIncludePatterns = ref('');
-const inputIgnorePatterns = ref('');
-const inputOutputParsable = ref(false);
-const inputRepositoryUrl = ref('');
-const inputCompress = ref(false);
+// Use composables for state management
+const {
+  // Pack options
+  packOptions,
 
-// Processing states
-const loading = ref(false);
-const error = ref<string | null>(null);
-const result = ref<PackResult | null>(null);
-const hasExecuted = ref(false);
-const mode = ref<'url' | 'file' | 'folder'>('url');
-const uploadedFile = ref<File | null>(null);
+  // Input states
+  inputUrl,
+  inputRepositoryUrl,
+  mode,
+  uploadedFile,
 
-// Compute if the current mode's input is valid for submission
-const isSubmitValid = computed(() => {
-  switch (mode.value) {
-    case 'url':
-      return !!inputUrl.value && isValidRemoteValue(inputUrl.value.trim());
-    case 'file':
-    case 'folder':
-      return !!uploadedFile.value;
-    default:
-      return false;
-  }
-});
+  // Request states
+  loading,
+  error,
+  result,
+  hasExecuted,
 
-// Explicitly set the mode and handle related state changes
-function setMode(newMode: 'url' | 'file' | 'folder') {
-  mode.value = newMode;
-}
+  // Computed
+  isSubmitValid,
 
-const TIMEOUT_MS = 30_000;
-let requestController: AbortController | null = null;
+  // Actions
+  setMode,
+  handleFileUpload,
+  submitRequest,
+} = usePackRequest();
 
 async function handleSubmit() {
-  // Check if current mode has valid input
-  if (!isSubmitValid.value) return;
-
-  // Cancel any pending request
-  if (requestController) {
-    requestController.abort();
-  }
-  requestController = new AbortController();
-
-  loading.value = true;
-  error.value = null;
-  result.value = null;
-  hasExecuted.value = true;
-  inputRepositoryUrl.value = inputUrl.value;
-
-  const timeoutId = setTimeout(() => {
-    if (requestController) {
-      requestController.abort('Request timed out');
-      throw new Error('Request timed out');
-    }
-  }, TIMEOUT_MS);
-
-  await handlePackRequest(
-    mode.value === 'url' ? inputUrl.value : '',
-    inputFormat.value,
-    {
-      removeComments: inputRemoveComments.value,
-      removeEmptyLines: inputRemoveEmptyLines.value,
-      showLineNumbers: inputShowLineNumbers.value,
-      fileSummary: inputFileSummary.value,
-      directoryStructure: inputDirectoryStructure.value,
-      includePatterns: inputIncludePatterns.value ? inputIncludePatterns.value.trim() : undefined,
-      ignorePatterns: inputIgnorePatterns.value ? inputIgnorePatterns.value.trim() : undefined,
-      outputParsable: inputOutputParsable.value,
-      compress: inputCompress.value,
-    },
-    {
-      onSuccess: (response) => {
-        result.value = response;
-      },
-      onError: (errorMessage) => {
-        error.value = errorMessage;
-      },
-      signal: requestController.signal,
-      file: mode.value === 'file' || mode.value === 'folder' ? uploadedFile.value || undefined : undefined,
-    },
-  );
-
-  clearTimeout(timeoutId);
-
-  loading.value = false;
-  requestController = null;
+  await submitRequest();
 }
 
 function handleKeydown(event: KeyboardEvent) {
   if (event.key === 'Enter' && mode.value === 'url' && isSubmitValid.value && !loading.value) {
     handleSubmit();
   }
-}
-
-function handleFileUpload(file: File) {
-  uploadedFile.value = file;
 }
 
 // Add repository parameter handling when component mounts
