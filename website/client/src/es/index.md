@@ -24,7 +24,14 @@ features:
 
 ---
 
+<script setup>
+import YouTubeVideo from '../../components/YouTubeVideo.vue'
+import { VIDEO_IDS } from '../../utils/videos'
+</script>
+
 <div class="cli-section">
+
+[![Sponsors](https://cdn.jsdelivr.net/gh/yamadashy/sponsor-list/sponsors/sponsors.png)](https://github.com/sponsors/yamadashy)
 
 ## 🏆 Nominación a los Open Source Awards
 
@@ -33,6 +40,12 @@ features:
 ¡Esto no habría sido posible sin todos ustedes que usan y apoyan Repomix. ¡Gracias!
 
 Si Repomix te ha ayudado a analizar o empaquetar bases de código para herramientas de IA, agradeceríamos tu voto en la categoría **Powered by AI**.
+
+## ¿Qué es Repomix?
+
+Repomix es una herramienta poderosa que empaqueta toda tu base de código en un solo archivo compatible con IA. Ya sea que estés trabajando en revisiones de código, refactoring o necesites asistencia de IA para tu proyecto, Repomix facilita compartir todo el contexto de tu repositorio con herramientas de IA.
+
+<YouTubeVideo :videoId="VIDEO_IDS.REPOMIX_DEMO" />
 
 ## Inicio rápido
 
@@ -194,6 +207,18 @@ Crea un archivo `repomix.config.json` para configuraciones persistentes:
   }
 }
 ```
+
+## Guía para Usuarios Avanzados
+
+Repomix ofrece características poderosas para casos de uso avanzados. Aquí tienes algunas guías esenciales para usuarios avanzados:
+
+- **[Servidor MCP](./guide/mcp-server)** - Integración del Protocolo de Contexto de Modelo para asistentes de IA
+- **[GitHub Actions](./guide/github-actions)** - Automatiza el empaquetado de código base en flujos de trabajo CI/CD
+- **[Compresión de Código](./guide/code-compress)** - Compresión inteligente basada en Tree-sitter (~70% de reducción de tokens)
+- **[Usar como Biblioteca](./guide/development/using-repomix-as-a-library)** - Integra Repomix en tus aplicaciones Node.js
+- **[Instrucciones Personalizadas](./guide/custom-instructions)** - Añade prompts e instrucciones personalizadas a las salidas
+- **[Características de Seguridad](./guide/security)** - Integración incorporada de Secretlint y verificaciones de seguridad
+- **[Mejores Prácticas](./guide/tips/best-practices)** - Optimiza tus flujos de trabajo de IA con estrategias probadas
 
 ### Más ejemplos
 ::: tip ¿Necesitas más ayuda? 💡

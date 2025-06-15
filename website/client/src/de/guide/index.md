@@ -2,11 +2,17 @@
 
 <script setup>
 import HomeBadges from '../../../components/HomeBadges.vue'
+import YouTubeVideo from '../../../components/YouTubeVideo.vue'
+import { VIDEO_IDS } from '../../../utils/videos'
 </script>
 
 Repomix ist ein Tool, das Ihr gesamtes Repository in eine einzige, KI-freundliche Datei verpackt. Es wurde entwickelt, um Ihren Codebase an große Sprachmodelle (LLMs) wie ChatGPT, DeepSeek, Perplexity, Gemini, Gemma, Llama, Grok und mehr zu übergeben.
 
+<YouTubeVideo :videoId="VIDEO_IDS.REPOMIX_DEMO" />
+
 <HomeBadges />
+
+[![Sponsors](https://cdn.jsdelivr.net/gh/yamadashy/sponsor-list/sponsors/sponsors.png)](https://github.com/sponsors/yamadashy)
 
 ## Schnellstart
 

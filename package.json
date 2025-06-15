@@ -1,6 +1,6 @@
 {
   "name": "repomix",
-  "version": "0.3.8",
+  "version": "0.3.9",
   "description": "A tool to pack repository contents to single file for AI consumption",
   "main": "./lib/index.js",
   "types": "./lib/index.d.ts",
@@ -79,6 +79,7 @@
     "clipboardy": "^4.0.0",
     "commander": "^14.0.0",
     "fast-xml-parser": "^5.2.0",
+    "fflate": "^0.8.2",
     "git-url-parse": "^16.1.0",
     "globby": "^14.1.0",
     "handlebars": "^4.7.8",
@@ -99,9 +100,11 @@
   },
   "devDependencies": {
     "@biomejs/biome": "^1.9.4",
+    "@secretlint/types": "^9.3.4",
     "@types/node": "^22.14.1",
     "@types/strip-comments": "^2.0.4",
     "@vitest/coverage-v8": "^3.1.1",
+    "git-up": "^8.1.1",
     "rimraf": "^6.0.1",
     "secretlint": "^9.3.1",
     "tsx": "^4.19.4",

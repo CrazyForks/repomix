@@ -135,7 +135,7 @@ describe('cliPrint', () => {
         'README.md': 400,
       };
 
-      printTopFiles(fileCharCounts, fileTokenCounts, 2);
+      printTopFiles(fileCharCounts, fileTokenCounts, 2, 60);
 
       expect(logger.log).toHaveBeenCalledWith(expect.stringContaining('Top 2 Files'));
       expect(logger.log).toHaveBeenCalledWith(expect.stringContaining('README.md'));
@@ -144,7 +144,7 @@ describe('cliPrint', () => {
     });
 
     test('should handle empty file list', () => {
-      printTopFiles({}, {}, 5);
+      printTopFiles({}, {}, 5, 0);
 
       expect(logger.log).toHaveBeenCalledWith(expect.stringContaining('Top 5 Files'));
     });

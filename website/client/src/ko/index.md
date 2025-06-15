@@ -24,7 +24,14 @@ features:
 
 ---
 
+<script setup>
+import YouTubeVideo from '../../components/YouTubeVideo.vue'
+import { VIDEO_IDS } from '../../utils/videos'
+</script>
+
 <div class="cli-section">
+
+[![Sponsors](https://cdn.jsdelivr.net/gh/yamadashy/sponsor-list/sponsors/sponsors.png)](https://github.com/sponsors/yamadashy)
 
 ## 🏆 오픈소스 어워드 후보 지명
 
@@ -33,6 +40,12 @@ features:
 이는 Repomix를 사용하고 지원해 주신 여러분 모두 덕분입니다. 감사합니다!
 
 Repomix가 AI 도구를 위한 코드베이스 분석이나 패키징에 도움이 되었다면, **Powered by AI** 카테고리에서 저희에게 투표해 주시면 감사하겠습니다.
+
+## Repomix란 무엇인가요?
+
+Repomix는 전체 코드베이스를 하나의 AI 친화적 파일로 패키징하는 강력한 도구입니다. 코드 리뷰, 리팩터링 또는 프로젝트에 대한 AI 지원이 필요할 때, 전체 리포지토리 컨텍스트를 AI 도구와 쉽게 공유할 수 있습니다.
+
+<YouTubeVideo :videoId="VIDEO_IDS.REPOMIX_DEMO" />
 
 ## 빠른 시작
 
@@ -194,6 +207,18 @@ repomix --style plain
   }
 }
 ```
+
+## 파워 유저 가이드
+
+Repomix는 고급 사용 사례를 위한 강력한 기능들을 제공합니다. 파워 유저를 위한 필수 가이드들을 소개합니다:
+
+- **[MCP 서버](./guide/mcp-server)** - AI 어시스턴트를 위한 Model Context Protocol 통합
+- **[GitHub Actions](./guide/github-actions)** - CI/CD 워크플로우에서 코드베이스 패키징 자동화
+- **[코드 압축](./guide/code-compress)** - Tree-sitter 기반 인텔리전트 압축 (~70% 토큰 감소)
+- **[라이브러리로 사용하기](./guide/development/using-repomix-as-a-library)** - Node.js 애플리케이션에 Repomix 통합
+- **[커스텀 지시사항](./guide/custom-instructions)** - 출력에 커스텀 프롬프트와 지시사항 추가
+- **[보안 기능](./guide/security)** - 내장된 Secretlint 통합 및 안전성 검사
+- **[모범 사례](./guide/tips/best-practices)** - 검증된 전략으로 AI 워크플로우 최적화
 
 ### 더 많은 예제
 ::: tip 더 자세한 도움이 필요하신가요? 💡

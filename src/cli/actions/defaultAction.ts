@@ -7,7 +7,9 @@ import {
   type RepomixOutputStyle,
   repomixConfigCliSchema,
 } from '../../config/configSchema.js';
+import { readFilePathsFromStdin } from '../../core/file/fileStdin.js';
 import { type PackResult, pack } from '../../core/packager.js';
+import { RepomixError } from '../../shared/errorHandle.js';
 import { rethrowValidationErrorIfZodError } from '../../shared/errorHandle.js';
 import { logger } from '../../shared/logger.js';
 import { splitPatterns } from '../../shared/patternUtils.js';
@@ -44,6 +46,79 @@ export const runDefaultAction = async (
 
   logger.trace('Merged config:', config);
 
+  // Route to appropriate processing workflow
+  if (cliOptions.stdin) {
+    return handleStdinProcessing(directories, cwd, config, cliOptions);
+  }
+
+  return handleDirectoryProcessing(directories, cwd, config, cliOptions);
+};
+
+/**
+ * Handles stdin processing workflow for file paths input.
+ */
+export const handleStdinProcessing = async (
+  directories: string[],
+  cwd: string,
+  config: RepomixConfigMerged,
+  cliOptions: CliOptions,
+): Promise<DefaultActionRunnerResult> => {
+  // Validate directory arguments for stdin mode
+  const firstDir = directories[0] ?? '.';
+  if (directories.length > 1 || firstDir !== '.') {
+    throw new RepomixError(
+      'When using --stdin, do not specify directory arguments. File paths will be read from stdin.',
+    );
+  }
+
+  const spinner = new Spinner('Reading file paths from stdin...', cliOptions);
+  spinner.start();
+
+  let packResult: PackResult;
+
+  try {
+    const stdinResult = await readFilePathsFromStdin(cwd);
+
+    spinner.update('Packing files...');
+
+    // Create a custom pack variant that uses the stdin file paths directly
+    packResult = await pack(
+      [cwd],
+      config,
+      (message) => {
+        spinner.update(message);
+      },
+      {
+        searchFiles: async () => ({
+          filePaths: stdinResult.filePaths.map((filePath) => path.relative(cwd, filePath)),
+          emptyDirPaths: stdinResult.emptyDirPaths,
+        }),
+      },
+    );
+  } catch (error) {
+    spinner.fail('Error reading from stdin or during packing');
+    throw error;
+  }
+
+  spinner.succeed('Packing completed successfully!');
+
+  printResults(cwd, packResult, config);
+
+  return {
+    packResult,
+    config,
+  };
+};
+
+/**
+ * Handles normal directory processing workflow.
+ */
+export const handleDirectoryProcessing = async (
+  directories: string[],
+  cwd: string,
+  config: RepomixConfigMerged,
+  cliOptions: CliOptions,
+): Promise<DefaultActionRunnerResult> => {
   const targetPaths = directories.map((directory) => path.resolve(cwd, directory));
 
   const spinner = new Spinner('Packing files...', cliOptions);
@@ -61,10 +136,28 @@ export const runDefaultAction = async (
   }
 
   spinner.succeed('Packing completed successfully!');
+
+  printResults(cwd, packResult, config);
+
+  return {
+    packResult,
+    config,
+  };
+};
+
+/**
+ * Prints the results of packing operation including top files, security check, summary, and completion.
+ */
+const printResults = (cwd: string, packResult: PackResult, config: RepomixConfigMerged): void => {
   logger.log('');
 
   if (config.output.topFilesLength > 0) {
-    printTopFiles(packResult.fileCharCounts, packResult.fileTokenCounts, config.output.topFilesLength);
+    printTopFiles(
+      packResult.fileCharCounts,
+      packResult.fileTokenCounts,
+      config.output.topFilesLength,
+      packResult.totalTokens,
+    );
     logger.log('');
   }
 
@@ -75,11 +168,6 @@ export const runDefaultAction = async (
   logger.log('');
 
   printCompletion();
-
-  return {
-    packResult,
-    config,
-  };
 };
 
 /**

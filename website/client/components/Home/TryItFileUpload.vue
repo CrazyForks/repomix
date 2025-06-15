@@ -1,9 +1,8 @@
 <script setup lang="ts">
 import { AlertTriangle, FolderArchive } from 'lucide-vue-next';
-import { ref } from 'vue';
+import { useFileUpload } from '../../composables/useFileUpload';
+import { useZipProcessor } from '../../composables/useZipProcessor';
 import PackButton from './PackButton.vue';
-
-const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 
 const props = defineProps<{
   loading: boolean;
@@ -14,42 +13,50 @@ const emit = defineEmits<{
   upload: [file: File];
 }>();
 
-const fileInput = ref<HTMLInputElement | null>(null);
-const dragActive = ref(false);
-const selectedFile = ref<File | null>(null);
-const errorMessage = ref<string | null>(null);
+const { validateZipFile } = useZipProcessor();
 
-function validateFile(file: File): boolean {
-  errorMessage.value = null;
+const {
+  fileInput,
+  dragActive,
+  selectedItem: selectedFile,
+  errorMessage,
+  hasError,
+  isValid,
+  inputAttributes,
+  handleFileSelect,
+  handleDragOver,
+  handleDragLeave,
+  handleDrop,
+  triggerFileInput,
+  clearSelection,
+} = useFileUpload({
+  mode: 'file',
+  placeholder: 'Drop your ZIP file here or click to browse (max 10MB)',
+  icon: 'file',
+  options: {
+    maxFileSize: 10 * 1024 * 1024, // 10MB
+    acceptedTypes: ['.zip'],
+    accept: '.zip',
+    validateFile: validateZipFile,
+  },
+});
 
-  if (file.type !== 'application/zip' && !file.name.endsWith('.zip')) {
-    errorMessage.value = 'Please upload a ZIP file';
-    return false;
+async function onFileSelect(files: FileList | null) {
+  const result = await handleFileSelect(files);
+  if (result.success && result.result) {
+    emit('upload', result.result);
   }
-
-  if (file.size > MAX_FILE_SIZE) {
-    const sizeMB = (file.size / (1024 * 1024)).toFixed(1);
-    errorMessage.value = `File size (${sizeMB}MB) exceeds the 10MB limit`;
-    return false;
-  }
-
-  return true;
 }
 
-function handleFileSelect(files: FileList | null) {
-  if (!files || files.length === 0) return;
-
-  const file = files[0];
-  if (validateFile(file)) {
-    selectedFile.value = file;
-    emit('upload', file);
-  } else {
-    selectedFile.value = null;
+async function onDrop(event: DragEvent) {
+  const result = await handleDrop(event);
+  if (result.success && result.result) {
+    emit('upload', result.result);
   }
 }
 
-function triggerFileInput() {
-  fileInput.value?.click();
+function clearFile() {
+  clearSelection();
 }
 </script>
 
@@ -57,22 +64,21 @@ function triggerFileInput() {
   <div class="upload-wrapper">
     <div
       class="upload-container"
-      :class="{ 'drag-active': dragActive, 'has-error': errorMessage }"
-      @dragover.prevent="dragActive = true"
-      @dragleave="dragActive = false"
-      @drop.prevent="handleFileSelect($event.dataTransfer?.files || null)"
+      :class="{ 'drag-active': dragActive, 'has-error': hasError }"
+      @dragover.prevent="handleDragOver"
+      @dragleave="handleDragLeave"
+      @drop.prevent="onDrop"
       @click="triggerFileInput"
     >
       <input
         ref="fileInput"
-        type="file"
-        accept=".zip"
+        v-bind="inputAttributes"
         class="hidden-input"
-        @change="(e) => handleFileSelect((e.target as HTMLInputElement).files)"
+        @change="(e) => onFileSelect((e.target as HTMLInputElement).files)"
       />
       <div class="upload-content">
         <div class="upload-icon">
-          <AlertTriangle v-if="errorMessage" class="icon-error" size="20" />
+          <AlertTriangle v-if="hasError" class="icon-error" size="20" />
           <FolderArchive v-else class="icon-folder" size="20" />
         </div>
         <div class="upload-text">
@@ -80,8 +86,8 @@ function triggerFileInput() {
             {{ errorMessage }}
           </p>
           <p v-else-if="selectedFile" class="selected-file">
-            Selected: {{ selectedFile.name }}
-            <button class="clear-button" @click.stop="selectedFile = null">×</button>
+            Selected: {{ selectedFile }}
+            <button class="clear-button" @click.stop="clearFile">×</button>
           </p>
           <template v-else>
             <p>Drop your ZIP file here or click to browse (max 10MB)</p>
@@ -93,7 +99,7 @@ function triggerFileInput() {
   <div v-if="showButton" class="pack-button-container">
     <PackButton
       :loading="loading"
-      :isValid="!!selectedFile"
+      :isValid="isValid"
     />
   </div>
 </template>

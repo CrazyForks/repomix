@@ -1,16 +1,26 @@
+import path from 'node:path';
 import process from 'node:process';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { buildCliConfig, runDefaultAction } from '../../../src/cli/actions/defaultAction.js';
+import {
+  buildCliConfig,
+  handleDirectoryProcessing,
+  handleStdinProcessing,
+  runDefaultAction,
+} from '../../../src/cli/actions/defaultAction.js';
 import type { CliOptions } from '../../../src/cli/types.js';
 import * as configLoader from '../../../src/config/configLoad.js';
+import * as fileStdin from '../../../src/core/file/fileStdin.js';
 import * as packageJsonParser from '../../../src/core/file/packageJsonParse.js';
 import * as packager from '../../../src/core/packager.js';
+import type { PackResult } from '../../../src/core/packager.js';
 
 vi.mock('../../../src/core/packager');
 vi.mock('../../../src/config/configLoad');
 vi.mock('../../../src/core/file/packageJsonParse');
+vi.mock('../../../src/core/file/fileStdin');
 vi.mock('../../../src/shared/logger');
 vi.mock('../../../src/cli/cliSpinner');
+vi.mock('../../../src/cli/cliPrint');
 
 describe('defaultAction', () => {
   beforeEach(() => {
@@ -572,6 +582,270 @@ describe('defaultAction', () => {
         expect.anything(),
         expect.objectContaining({}),
       );
+    });
+  });
+
+  describe('handleStdinProcessing', () => {
+    const testCwd = path.resolve('/test/cwd');
+    const mockConfig = {
+      cwd: testCwd,
+      input: { maxFileSize: 50 * 1024 * 1024 },
+      output: {
+        filePath: 'output.txt',
+        style: 'plain' as const,
+        parsableStyle: false,
+        fileSummary: true,
+        directoryStructure: true,
+        topFilesLength: 5,
+        showLineNumbers: false,
+        removeComments: false,
+        removeEmptyLines: false,
+        compress: false,
+        copyToClipboard: false,
+        stdout: false,
+        git: { sortByChanges: true, sortByChangesMaxCommits: 100, includeDiffs: false },
+        files: true,
+      },
+      ignore: { useGitignore: true, useDefaultPatterns: true, customPatterns: [] },
+      include: [],
+      security: { enableSecurityCheck: true },
+      tokenCount: { encoding: 'cl100k_base' as const },
+    };
+
+    const mockCliOptions: CliOptions = {
+      verbose: false,
+      progress: true,
+      stdin: true,
+    };
+
+    beforeEach(() => {
+      vi.mocked(packager.pack).mockResolvedValue({
+        totalTokens: 1000,
+        totalFiles: 3,
+        totalChars: 2500,
+        totalCharacters: 2500,
+        gitDiffTokenCount: 0,
+        processedFiles: [],
+        safeFilePaths: [],
+        suspiciousFilesResults: [],
+        suspiciousGitDiffResults: [],
+        fileCharCounts: {},
+        fileTokenCounts: {},
+        outputFilePath: 'output.txt',
+      } as PackResult);
+    });
+
+    it('should validate directory arguments and throw error for multiple directories', async () => {
+      await expect(handleStdinProcessing(['dir1', 'dir2'], testCwd, mockConfig, mockCliOptions)).rejects.toThrow(
+        'When using --stdin, do not specify directory arguments',
+      );
+    });
+
+    it('should validate directory arguments and throw error for non-default directory', async () => {
+      await expect(handleStdinProcessing(['src'], testCwd, mockConfig, mockCliOptions)).rejects.toThrow(
+        'When using --stdin, do not specify directory arguments',
+      );
+    });
+
+    it('should accept default directory argument', async () => {
+      vi.mocked(fileStdin.readFilePathsFromStdin).mockResolvedValue({
+        filePaths: [path.resolve(testCwd, 'file1.txt')],
+        emptyDirPaths: [],
+      });
+
+      const result = await handleStdinProcessing(['.'], testCwd, mockConfig, mockCliOptions);
+
+      expect(result).toEqual({
+        packResult: expect.any(Object),
+        config: mockConfig,
+      });
+      expect(fileStdin.readFilePathsFromStdin).toHaveBeenCalledWith(testCwd);
+    });
+
+    it('should handle empty directories array', async () => {
+      vi.mocked(fileStdin.readFilePathsFromStdin).mockResolvedValue({
+        filePaths: [path.resolve(testCwd, 'file1.txt')],
+        emptyDirPaths: [],
+      });
+
+      const result = await handleStdinProcessing([], testCwd, mockConfig, mockCliOptions);
+
+      expect(result).toEqual({
+        packResult: expect.any(Object),
+        config: mockConfig,
+      });
+    });
+
+    it('should call pack with correct arguments from stdin result', async () => {
+      const stdinResult = {
+        filePaths: [path.resolve(testCwd, 'file1.txt'), path.resolve(testCwd, 'subdir/file2.txt')],
+        emptyDirPaths: [path.resolve(testCwd, 'emptydir')],
+      };
+
+      vi.mocked(fileStdin.readFilePathsFromStdin).mockResolvedValue(stdinResult);
+
+      await handleStdinProcessing(['.'], testCwd, mockConfig, mockCliOptions);
+
+      expect(packager.pack).toHaveBeenCalledWith([testCwd], mockConfig, expect.any(Function), {
+        searchFiles: expect.any(Function),
+      });
+
+      // Test the searchFiles function
+      const packCall = vi.mocked(packager.pack).mock.calls[0];
+      const searchFiles = packCall[3]?.searchFiles;
+      expect(searchFiles).toBeDefined();
+
+      if (searchFiles) {
+        const searchResult = await searchFiles(testCwd, mockConfig);
+        expect(searchResult).toEqual({
+          filePaths: ['file1.txt', path.join('subdir', 'file2.txt')],
+          emptyDirPaths: [path.resolve(testCwd, 'emptydir')],
+        });
+      }
+    });
+
+    it('should propagate errors from readFilePathsFromStdin', async () => {
+      const error = new Error('stdin read error');
+      vi.mocked(fileStdin.readFilePathsFromStdin).mockRejectedValue(error);
+
+      await expect(handleStdinProcessing(['.'], testCwd, mockConfig, mockCliOptions)).rejects.toThrow(
+        'stdin read error',
+      );
+    });
+
+    it('should propagate errors from pack operation', async () => {
+      vi.mocked(fileStdin.readFilePathsFromStdin).mockResolvedValue({
+        filePaths: [path.resolve(testCwd, 'file1.txt')],
+        emptyDirPaths: [],
+      });
+
+      const error = new Error('pack error');
+      vi.mocked(packager.pack).mockRejectedValue(error);
+
+      await expect(handleStdinProcessing(['.'], testCwd, mockConfig, mockCliOptions)).rejects.toThrow('pack error');
+    });
+  });
+
+  describe('handleDirectoryProcessing', () => {
+    const testCwd = path.resolve('/test/cwd');
+    const mockConfig = {
+      cwd: testCwd,
+      input: { maxFileSize: 50 * 1024 * 1024 },
+      output: {
+        filePath: 'output.txt',
+        style: 'plain' as const,
+        parsableStyle: false,
+        fileSummary: true,
+        directoryStructure: true,
+        topFilesLength: 5,
+        showLineNumbers: false,
+        removeComments: false,
+        removeEmptyLines: false,
+        compress: false,
+        copyToClipboard: false,
+        stdout: false,
+        git: { sortByChanges: true, sortByChangesMaxCommits: 100, includeDiffs: false },
+        files: true,
+      },
+      ignore: { useGitignore: true, useDefaultPatterns: true, customPatterns: [] },
+      include: [],
+      security: { enableSecurityCheck: true },
+      tokenCount: { encoding: 'cl100k_base' as const },
+    };
+
+    const mockCliOptions: CliOptions = {
+      verbose: false,
+      progress: true,
+    };
+
+    beforeEach(() => {
+      vi.mocked(packager.pack).mockResolvedValue({
+        totalTokens: 1000,
+        totalFiles: 3,
+        totalChars: 2500,
+        totalCharacters: 2500,
+        gitDiffTokenCount: 0,
+        processedFiles: [],
+        safeFilePaths: [],
+        suspiciousFilesResults: [],
+        suspiciousGitDiffResults: [],
+        fileCharCounts: {},
+        fileTokenCounts: {},
+        outputFilePath: 'output.txt',
+      } as PackResult);
+    });
+
+    it('should resolve directory paths and call pack with absolute paths', async () => {
+      const directories = ['src', 'lib', './docs'];
+
+      const result = await handleDirectoryProcessing(directories, testCwd, mockConfig, mockCliOptions);
+
+      expect(packager.pack).toHaveBeenCalledWith(
+        [path.resolve(testCwd, 'src'), path.resolve(testCwd, 'lib'), path.resolve(testCwd, 'docs')],
+        mockConfig,
+        expect.any(Function),
+      );
+
+      expect(result).toEqual({
+        packResult: expect.any(Object),
+        config: mockConfig,
+      });
+    });
+
+    it('should handle single directory', async () => {
+      const directories = ['.'];
+
+      await handleDirectoryProcessing(directories, testCwd, mockConfig, mockCliOptions);
+
+      expect(packager.pack).toHaveBeenCalledWith([testCwd], mockConfig, expect.any(Function));
+    });
+
+    it('should handle absolute directory paths', async () => {
+      const absolutePath1 = path.resolve('/absolute/path');
+      const absolutePath2 = path.resolve('/another/absolute');
+      const directories = [absolutePath1, absolutePath2];
+
+      await handleDirectoryProcessing(directories, testCwd, mockConfig, mockCliOptions);
+
+      expect(packager.pack).toHaveBeenCalledWith([absolutePath1, absolutePath2], mockConfig, expect.any(Function));
+    });
+
+    it('should propagate errors from pack operation', async () => {
+      const error = new Error('pack error');
+      vi.mocked(packager.pack).mockRejectedValue(error);
+
+      await expect(handleDirectoryProcessing(['.'], testCwd, mockConfig, mockCliOptions)).rejects.toThrow('pack error');
+    });
+
+    it('should call progress callback during packing', async () => {
+      let progressCallback: ((message: string) => void) | undefined;
+
+      vi.mocked(packager.pack).mockImplementation(async (paths, config, callback) => {
+        progressCallback = callback;
+        // Simulate progress callback
+        if (callback) {
+          callback('Processing files...');
+        }
+        return {
+          totalTokens: 1000,
+          totalFiles: 3,
+          totalChars: 2500,
+          totalCharacters: 2500,
+          gitDiffTokenCount: 0,
+          processedFiles: [],
+          safeFilePaths: [],
+          suspiciousFilesResults: [],
+          suspiciousGitDiffResults: [],
+          fileCharCounts: {},
+          fileTokenCounts: {},
+          outputFilePath: 'output.txt',
+        } as PackResult;
+      });
+
+      await handleDirectoryProcessing(['.'], testCwd, mockConfig, mockCliOptions);
+
+      expect(progressCallback).toBeDefined();
+      expect(packager.pack).toHaveBeenCalledWith(expect.any(Array), expect.any(Object), expect.any(Function));
     });
   });
 });

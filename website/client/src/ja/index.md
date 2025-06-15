@@ -24,15 +24,28 @@ features:
 
 ---
 
+<script setup>
+import YouTubeVideo from '../../components/YouTubeVideo.vue'
+import { VIDEO_IDS } from '../../utils/videos'
+</script>
+
 <div class="cli-section">
+
+[![Sponsors](https://cdn.jsdelivr.net/gh/yamadashy/sponsor-list/sponsors/sponsors.png)](https://github.com/sponsors/yamadashy)
 
 ## 🏆 オープンソースアワードノミネート
 
-光栄です！RepomixがJSNation Open Source Awards 2025の**Powered by AI**カテゴリにノミネートされました。
+光栄です！Repomixが[JSNation Open Source Awards 2025](https://osawards.com/javascript/)の**Powered by AI**カテゴリにノミネートされました。
 
 これは皆様がRepomixを使用し、サポートしてくださったおかげです。ありがとうございます！
 
 RepomixがAIツール向けのコードベース分析やパッケージングにお役に立った場合、**Powered by AI**カテゴリでの投票をお願いいたします。
+
+## Repomixとは？
+
+Repomixは、コードベース全体を単一のAIフレンドリーなファイルにパッケージ化する強力なツールです。コードレビュー、リファクタリング、プロジェクトに関するAIアシスタンスが必要な場合に、リポジトリ全体のコンテキストをAIツールと簡単に共有できます。
+
+<YouTubeVideo :videoId="VIDEO_IDS.REPOMIX_DEMO" />
 
 ## クイックスタート
 
@@ -192,6 +205,18 @@ repomix --style plain
   }
 }
 ```
+
+## パワーユーザーガイド
+
+Repomixは高度な用途向けの強力な機能を提供します。パワーユーザー向けの重要なガイドをご紹介します：
+
+- **[MCPサーバー](./guide/mcp-server)** - AIアシスタント向けModel Context Protocol統合
+- **[GitHub Actions](./guide/github-actions)** - CI/CDワークフローでのコードベース自動パッケージング
+- **[コード圧縮](./guide/code-compress)** - Tree-sitterベースのインテリジェント圧縮（約70%のトークン削減）
+- **[ライブラリとして使用](./guide/development/using-repomix-as-a-library)** - Node.jsアプリケーションへのRepomix統合
+- **[カスタム指示](./guide/custom-instructions)** - 出力にカスタムプロンプトと指示を追加
+- **[セキュリティ機能](./guide/security)** - 組み込みSecretlint統合と安全性チェック
+- **[ベストプラクティス](./guide/tips/best-practices)** - 実証済みの戦略でAIワークフローを最適化
 
 ### その他の例
 ::: tip もっと詳しく知りたい場合は？ 💡
