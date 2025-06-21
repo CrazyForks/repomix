@@ -81,6 +81,32 @@ npx repomix --remote yamadashy/repomix
 npx repomix --remote https://github.com/yamadashy/repomix
 ```
 
+## फ़ाइल सूची इनपुट (stdin)
+
+अधिकतम लचीलेपन के लिए stdin के माध्यम से फ़ाइल पथ पास करें:
+
+```bash
+# find कमांड का उपयोग करके
+find src -name "*.ts" -type f | repomix --stdin
+
+# git का उपयोग करके ट्रैक्ड फ़ाइलें प्राप्त करने के लिए
+git ls-files "*.ts" | repomix --stdin
+
+# glob पैटर्न के साथ ls का उपयोग करके
+ls src/**/*.ts | repomix --stdin
+
+# फ़ाइल पथ वाली फ़ाइल से
+cat file-list.txt | repomix --stdin
+
+# echo के साथ प्रत्यक्ष इनपुट
+echo -e "src/index.ts\nsrc/utils.ts" | repomix --stdin
+```
+
+`--stdin` विकल्प आपको फ़ाइल पथों की सूची को Repomix में पाइप करने की अनुमति देता है, जो आपको पैक करने के लिए फ़ाइलों का चयन करने में अधिकतम लचीलापन प्रदान करता है।
+
+> [!NOTE]
+> `--stdin` का उपयोग करते समय, फ़ाइल पथ सापेक्ष या पूर्ण हो सकते हैं, और Repomix स्वचालित रूप से पथ रिज़ॉल्यूशन और डुप्लिकेशन हैंडलिंग करेगा।
+
 ## AI के साथ आउटपुट का उपयोग
 
 एक बार जब आपके पास पैक्ड फाइल है, तो आप इसे ChatGPT, Claude, या अन्य LLM के साथ उपयोग कर सकते हैं। बस फाइल को अपलोड करें और अपने प्रॉम्प्ट में इसका उल्लेख करें:

@@ -24,6 +24,7 @@
 ## Filteroptionen
 - `--include <patterns>`: Einzuschließende Muster (durch Komma getrennt)
 - `-i, --ignore <patterns>`: Zu ignorierende Muster (durch Komma getrennt)
+- `--stdin`: Dateipfade von stdin lesen anstatt Dateien automatisch zu erkennen
 - `--no-gitignore`: Deaktiviert die Verwendung der .gitignore-Datei
 - `--no-default-patterns`: Deaktiviert Standardmuster
 
@@ -76,4 +77,9 @@ repomix --remote https://github.com/user/repo/commit/836abcd7335137228ad77feb286
 
 # Remote-Repository mit Kurzform
 repomix --remote user/repo
+
+# Dateiliste mit stdin
+find src -name "*.ts" -type f | repomix --stdin
+git ls-files "*.js" | repomix --stdin
+echo -e "src/index.ts\nsrc/utils.ts" | repomix --stdin
 ```

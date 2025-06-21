@@ -2,97 +2,110 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-# Repomix Development Guide
+# Repomix Project Structure and Overview
 
-Repomix is a tool that packs repository contents into single files optimized for AI consumption. It converts codebases into structured formats (XML, Markdown, Plain Text) with intelligent compression, security scanning, and token counting for LLM integration.
+This document provides a structural overview of the Repomix project, designed to aid AI code assistants (like Copilot) in understanding the codebase.
 
-## Build & Development Commands
-- `npm run build` - Build the project
-- `npm run lint` - Run all linters (Biome, TypeScript, secretlint)
-- `npm run lint-biome` - Run Biome linter with auto-fix
-- `npm run lint-ts` - Run TypeScript type checking
-- `npm test` - Run all tests
-- `npm test -- /path/to/file.test.ts` - Run a specific test file
-- `npm test -- -t "test name"` - Run tests matching description
-- `npm run test-coverage` - Run tests with coverage report
-- `npm run repomix` - Build and run the CLI tool
-- `npm run repomix-src` - Pack only src and tests directories
-- `npm run repomix-website` - Pack only website directory
-- `npm run website` - Start local website development environment
-- `npm run website-generate-schema` - Generate JSON schema for configuration
+Please refer to `README.md` for a complete and up-to-date project overview, and `CONTRIBUTING.md` for implementation guidelines and contribution procedures.
 
-## Core Architecture
+## Project Overview
 
-### File Processing Pipeline (`src/core/file/`)
-- **fileCollect.ts**: Parallel file reading with worker threads for performance
-- **fileProcess.ts**: Content transformation including comment removal and formatting
-- **fileSearch.ts**: Glob pattern-based file discovery with gitignore integration
-- **filePathSort.ts**: Git-aware file ordering by change frequency for optimal AI context
+Repomix is a tool that packs the contents of a software repository into a single file, making it easier for AI systems to analyze and process the codebase. It supports various output formats (XML, Markdown, or plain text), ignores files based on configurable patterns, and performs security checks to exclude potentially sensitive information.
 
-### Security & Validation (`src/core/security/`)
-- **securityCheck.ts**: Multi-threaded Secretlint integration for sensitive data detection
-- **validateFileSafety.ts**: Pre-processing file safety validation
-- Uses worker threads for concurrent security scanning to prevent blocking
+## Directory Structure
 
-### Output Generation (`src/core/output/`)
-- **outputGenerate.ts**: Multi-format support (XML default, Markdown, Plain Text)
-- **outputStyles/**: Format-specific templates with Handlebars templating
-- **outputStyleDecorate.ts**: Content decoration with line numbers and headers
+The project is organized into the following directories:
 
-### Tree-Sitter Integration (`src/core/treeSitter/`)
-- **languageParser.ts**: 15+ language support for intelligent code parsing
-- **parseStrategies/**: Language-specific parsing strategies for optimal compression
-- Achieves ~70% token reduction while preserving semantic meaning
+```
+repomix/
+├── browser/ # Browser extension source code
+├── src/ # Main source code
+│   ├── cli/ # Command-line interface logic (argument parsing, command handling, output)
+│   ├── config/ # Configuration loading, schema, and defaults
+│   ├── core/ # Core logic of Repomix
+│   │   ├── file/ # File handling (reading, processing, searching, tree structure generation, git commands)
+│   │   ├── metrics/ # Calculating code metrics (character count, token count)
+│   │   ├── output/ # Output generation (different styles, headers, etc.)
+│   │   ├── packager/ # Orchestrates file collection, processing, output, and clipboard operations.
+│   │   ├── security/ # Security checks to exclude sensitive files
+│   │   ├── mcp/ # MCP server integration (packaging codebases for AI analysis)
+│   │   ├── tokenCount/ # Token counting using Tiktoken
+│   │   └── treeSitter/ # Code parsing using Tree-sitter and language-specific queries
+│   └── shared/ # Shared utilities and types (error handling, logging, helper functions)
+├── tests/ # Unit and integration tests (organized mirroring src/)
+│   ├── cli/
+│   ├── config/
+│   ├── core/
+│   ├── integration-tests/
+│   ├── shared/
+│   └── testing/
+└── website/ # Documentation website (VitePress)
+```
 
-### CLI Architecture (`src/cli/`)
-- **cliRun.ts**: Main CLI orchestrator using Commander.js
-- **actions/**: Modular command handlers (default, remote, init, mcp, version)
-- **defaultAction.ts**: Standard local repository processing workflow
-- **remoteAction.ts**: GitHub URL/shorthand processing with branch/commit resolution
 
-### MCP Server (`src/mcp/`)
-- **mcpServer.ts**: Model Context Protocol server for AI assistant integration
-- **tools/**: File system access, repository packing, and content search capabilities
-- Provides sandboxed AI-to-codebase interaction layer
 
-## Code Style Guidelines
-- **Formatting**: 2 spaces indentation, 120 char line width, single quotes, trailing commas
-- **Imports**: Use `node:` prefix for built-ins, `.js` extension for relative imports, `import type` for types
-- **TypeScript**: Strict type checking, explicit return types, prefer interfaces for object types
-- **Error Handling**: Custom errors extend `RepomixError`, descriptive messages, proper try/catch
-- **Dependencies**: Inject dependencies through deps object parameter for testability
-- **File Structure**: Keep files under 250 lines, organize by feature, use workers for concurrent operations
-- **Testing**: Use Vitest, mock dependencies, descriptive test names, arrange/act/assert pattern
+# Coding Guidelines
+- Follow the Airbnb JavaScript Style Guide.
+- Split files into smaller, focused units when appropriate:
+  - Aim to keep code files under 250 lines. If a file exceeds 250 lines, split it into multiple files based on functionality.
+- Add comments to clarify non-obvious logic. **Ensure all comments are written in English.**
+- Provide corresponding unit tests for all new features.
+- After implementation, verify changes by running:
+  ```bash
+  npm run lint  # Ensure code style compliance
+  npm run test  # Verify all tests pass
+  ```
 
-## Naming Conventions
-- PascalCase: Classes, interfaces, types
-- camelCase: Variables, functions, methods, file names
-- Test files: `[filename].test.ts`
+## Commit Messages
+- Follow the [Conventional Commits](https://www.conventionalcommits.org/) specification for all commit messages
+- Always include a scope in your commit messages
+- Format: `type(scope): Description`
+  ```
+  # Examples:
+  feat(cli): Add new --no-progress flag
+  fix(security): Handle special characters in file paths
+  docs(website): Update installation guide
+  style(website): Update GitHub sponsor button color
+  refactor(core): Split packager into smaller modules
+  test(cli): Add tests for new CLI options
+  ```
+- Types: feat, fix, docs, style, refactor, test, chore, etc.
+- Scope should indicate the affected part of the codebase (cli, core, website, security, etc.)
+- Description should be clear and concise in present tense
+- Description must start with a capital letter
 
-## Key Design Patterns
+## Pull Request Guidelines
+- All pull requests must follow the template:
+  ```md
+  <!-- Please include a summary of the changes -->
 
-### Worker Thread Architecture
-- CPU-intensive operations (file processing, security checks, metrics) use Piscina worker pools
-- **Workers**: `src/core/file/workers/`, `src/core/security/workers/`, `src/core/metrics/workers/`
-- Enables concurrent processing while keeping main thread responsive
+  ## Checklist
 
-### Dependency Injection
-- Functions accept `deps` object parameter containing dependencies for testability
-- Example: `fileCollect(paths, options, deps = { readFile, processFile })`
-- Enables easy mocking in tests and flexible runtime configuration
+  - [ ] Run `npm run test`
+  - [ ] Run `npm run lint`
+  ```
+- Include a clear summary of the changes at the top of the pull request description
+- Reference any related issues using the format `#issue-number` 
 
-### Configuration System
-- **configSchema.ts**: Zod-based type-safe configuration with runtime validation
-- **configLoad.ts**: Hierarchical config merging (global → project → CLI options)
-- Supports JSON5 format for comments in configuration files
 
-### Error Handling
-- All custom errors extend `RepomixError` base class in `src/shared/errorHandle.ts`
-- Structured error types with context information for debugging
-- Proper error propagation through async/worker boundaries
+## Dependencies and Testing
+- Inject dependencies through a deps object parameter for testability
+- Example:
+  ```typescript
+  export const functionName = async (
+    param1: Type1,
+    param2: Type2,
+    deps = {
+      defaultFunction1,
+      defaultFunction2,
+    }
+  ) => {
+    // Use deps.defaultFunction1() instead of direct call
+  };
+  ```
+- Mock dependencies by passing test doubles through deps object
+- Use vi.mock() only when dependency injection is not feasible
 
-## Git Workflow
-- Follow [Conventional Commits](https://www.conventionalcommits.org/) with scope: `type(scope): Description`
-- Write detailed commit messages focusing on the "why" rather than the "what"
-- Run `npm run lint && npm test` before committing changes
-- Examples: `feat(cli): Add new --no-progress flag`, `fix(security): Handle special characters in file paths`
+## Generate Comprehensive Output
+- Include all content without abbreviation, unless specified otherwise
+- Optimize for handling large codebases while maintaining output quality

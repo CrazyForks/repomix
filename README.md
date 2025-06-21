@@ -49,6 +49,8 @@
 It is perfect for when you need to feed your codebase to Large Language Models (LLMs) or other AI tools like Claude,
 ChatGPT, DeepSeek, Perplexity, Gemini, Gemma, Llama, Grok, and more.
 
+[![Sponsors](https://cdn.jsdelivr.net/gh/yamadashy/sponsor-list/sponsors/sponsors.png)](https://github.com/sponsors/yamadashy)
+
 ## 🏆 Open Source Awards Nomination
 
 We're honored! Repomix has been nominated for the **Powered by AI** category at the [JSNation Open Source Awards 2025](https://osawards.com/javascript/).
@@ -213,6 +215,30 @@ repomix --remote https://github.com/yamadashy/repomix/tree/main
 repomix --remote https://github.com/yamadashy/repomix/commit/836abcd7335137228ad77feb28655d85712680f1
 
 ```
+
+To pack files from a file list (via stdin):
+
+```bash
+# Using find command
+find src -name "*.ts" -type f | repomix --stdin
+
+# Using git to get tracked files
+git ls-files "*.ts" | repomix --stdin
+
+# Using ls with glob patterns
+ls src/**/*.ts | repomix --stdin
+
+# From a file containing file paths
+cat file-list.txt | repomix --stdin
+
+# Direct input with echo
+echo -e "src/index.ts\nsrc/utils.ts" | repomix --stdin
+```
+
+The `--stdin` option allows you to pipe a list of file paths to Repomix, giving you ultimate flexibility in selecting which files to pack.
+
+> [!NOTE]
+> When using `--stdin`, file paths can be relative or absolute, and Repomix will automatically handle path resolution and deduplication.
 
 To compress the output:
 
@@ -482,6 +508,7 @@ Instruction
 #### Filter Options
 - `--include <patterns>`: List of include patterns (comma-separated)
 - `-i, --ignore <patterns>`: Additional ignore patterns (comma-separated)
+- `--stdin`: Read file paths from stdin instead of discovering files automatically
 - `--no-gitignore`: Disable .gitignore file usage
 - `--no-default-patterns`: Disable default patterns
 
@@ -1252,6 +1279,7 @@ We welcome contributions from the community! To get started, please refer to our
 ### Repomix Website ([repomix.com](https://repomix.com/))
 
 - **Data Collection**: The Repomix website uses **Google Analytics** to collect usage data, such as page views and user interactions. This helps us understand how the website is used and improve the user experience.
+- **File Processing**: When uploading ZIP files or folders, your files are temporarily stored on our servers for processing. All uploaded files and processed data are automatically deleted immediately after processing is complete.
 
 ### Repomix Browser Extension
 

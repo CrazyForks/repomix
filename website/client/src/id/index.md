@@ -24,7 +24,14 @@ features:
 
 ---
 
+<script setup>
+import YouTubeVideo from '../../components/YouTubeVideo.vue'
+import { VIDEO_IDS } from '../../utils/videos'
+</script>
+
 <div class="cli-section">
+
+[![Sponsors](https://cdn.jsdelivr.net/gh/yamadashy/sponsor-list/sponsors/sponsors.png)](https://github.com/sponsors/yamadashy)
 
 ## 🏆 Nominasi Open Source Awards
 
@@ -33,6 +40,12 @@ Kami merasa terhormat! Repomix telah dinominasikan untuk kategori **Powered by A
 Ini tidak mungkin terjadi tanpa semua pengguna yang menggunakan dan mendukung Repomix. Terima kasih!
 
 Jika Repomix telah membantu Anda menganalisis atau mengemas basis kode untuk alat AI, kami akan sangat berterima kasih atas suara Anda dalam kategori **Powered by AI**.
+
+## Apa itu Repomix?
+
+Repomix adalah alat yang powerful yang mengemas seluruh codebase Anda ke dalam satu file yang ramah AI. Baik Anda sedang bekerja pada code review, refactoring, atau membutuhkan bantuan AI untuk proyek Anda, Repomix memudahkan berbagi seluruh konteks repository dengan alat AI.
+
+<YouTubeVideo :videoId="VIDEO_IDS.REPOMIX_DEMO" />
 
 ## Mulai Cepat
 
@@ -193,6 +206,18 @@ Buat `repomix.config.json` untuk pengaturan permanen:
   }
 }
 ```
+
+## Panduan Pengguna Mahir
+
+Repomix menawarkan fitur-fitur canggih untuk kasus penggunaan lanjutan. Berikut adalah beberapa panduan penting untuk pengguna mahir:
+
+- **[Server MCP](./guide/mcp-server)** - Integrasi Model Context Protocol untuk asisten AI
+- **[GitHub Actions](./guide/github-actions)** - Otomatisasi pengemasan codebase dalam alur kerja CI/CD
+- **[Kompresi Kode](./guide/code-compress)** - Kompresi cerdas berbasis Tree-sitter (~70% pengurangan token)
+- **[Menggunakan sebagai Library](./guide/development/using-repomix-as-a-library)** - Integrasikan Repomix ke dalam aplikasi Node.js Anda
+- **[Instruksi Kustom](./guide/custom-instructions)** - Tambahkan prompt dan instruksi kustom ke output
+- **[Fitur Keamanan](./guide/security)** - Integrasi Secretlint bawaan dan pemeriksaan keamanan
+- **[Best Practices](./guide/tips/best-practices)** - Optimalkan alur kerja AI Anda dengan strategi yang terbukti
 
 ### Contoh Lainnya
 ::: tip Butuh bantuan lebih? 💡

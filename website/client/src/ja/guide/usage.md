@@ -38,6 +38,32 @@ repomix --remote user/repo --remote-branch main
 repomix --remote user/repo --remote-branch 935b695
 ```
 
+### ファイルリスト入力（stdin）
+
+究極の柔軟性でファイルパスをstdin経由で渡します：
+
+```bash
+# findコマンドを使用
+find src -name "*.ts" -type f | repomix --stdin
+
+# gitを使用してトラッキングされているファイルを取得
+git ls-files "*.ts" | repomix --stdin
+
+# globパターンを使用したls
+ls src/**/*.ts | repomix --stdin
+
+# ファイルパスが含まれるファイルから
+cat file-list.txt | repomix --stdin
+
+# echoで直接入力
+echo -e "src/index.ts\nsrc/utils.ts" | repomix --stdin
+```
+
+`--stdin`オプションを使用すると、Repomixにファイルパスのリストをパイプできるため、どのファイルをパッケージ化するかの選択において究極の柔軟性が得られます。
+
+> [!NOTE]
+> `--stdin`を使用する場合、ファイルパスは相対パスまたは絶対パスのどちらでも指定でき、Repomixが自動的にパス解決と重複除去を処理します。
+
 ### コード圧縮
 ```bash
 repomix --compress

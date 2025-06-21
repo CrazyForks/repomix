@@ -42,6 +42,32 @@ repomix --remote user/repo --remote-branch main
 repomix --remote user/repo --remote-branch 935b695
 ```
 
+### Entrée de liste de fichiers (stdin)
+
+Passez les chemins de fichiers via stdin pour une flexibilité ultime:
+
+```bash
+# En utilisant la commande find
+find src -name "*.ts" -type f | repomix --stdin
+
+# En utilisant git pour obtenir les fichiers suivis
+git ls-files "*.ts" | repomix --stdin
+
+# En utilisant ls avec des motifs glob
+ls src/**/*.ts | repomix --stdin
+
+# À partir d'un fichier contenant des chemins de fichiers
+cat file-list.txt | repomix --stdin
+
+# Entrée directe avec echo
+echo -e "src/index.ts\nsrc/utils.ts" | repomix --stdin
+```
+
+L'option `--stdin` vous permet de transmettre une liste de chemins de fichiers à Repomix, offrant une flexibilité ultime dans la sélection des fichiers à empaqueter.
+
+> [!NOTE]
+> Lors de l'utilisation de `--stdin`, les chemins de fichiers peuvent être relatifs ou absolus, et Repomix gèrera automatiquement la résolution des chemins et la déduplication.
+
 ### Compression de code
 
 ```bash

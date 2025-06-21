@@ -108,6 +108,7 @@ index 123..456 100644
       },
       {
         calculateAllFileMetrics: mockCalculateAllFileMetrics,
+        calculateSelectiveFileMetrics: vi.fn().mockResolvedValue([]),
         calculateOutputMetrics: mockCalculateOutputMetrics,
       },
     );
@@ -190,6 +191,7 @@ index 123..456 100644
       undefined, // No diff content
       {
         calculateAllFileMetrics: mockCalculateAllFileMetrics,
+        calculateSelectiveFileMetrics: vi.fn().mockResolvedValue([]),
         calculateOutputMetrics: mockCalculateOutputMetrics,
       },
     );
@@ -267,6 +269,7 @@ index 123..456 100644
       undefined, // No diff content
       {
         calculateAllFileMetrics: mockCalculateAllFileMetrics,
+        calculateSelectiveFileMetrics: vi.fn().mockResolvedValue([]),
         calculateOutputMetrics: mockCalculateOutputMetrics,
       },
     );

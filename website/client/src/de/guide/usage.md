@@ -38,6 +38,32 @@ repomix --remote user/repo --remote-branch main
 repomix --remote user/repo --remote-branch 935b695
 ```
 
+### Dateiliste-Eingabe (stdin)
+
+Übergeben Sie Dateipfade über stdin für ultimative Flexibilität:
+
+```bash
+# Mit find-Befehl
+find src -name "*.ts" -type f | repomix --stdin
+
+# Mit Git für verfolgte Dateien
+git ls-files "*.ts" | repomix --stdin
+
+# Mit ls und Glob-Mustern
+ls src/**/*.ts | repomix --stdin
+
+# Aus einer Datei mit Dateipfaden
+cat file-list.txt | repomix --stdin
+
+# Direkte Eingabe mit echo
+echo -e "src/index.ts\nsrc/utils.ts" | repomix --stdin
+```
+
+Die `--stdin`-Option ermöglicht es Ihnen, eine Liste von Dateipfaden an Repomix zu übertragen und bietet ultimative Flexibilität bei der Auswahl der zu packenden Dateien.
+
+> [!NOTE]
+> Bei der Verwendung von `--stdin` können Dateipfade relativ oder absolut angegeben werden, und Repomix übernimmt automatisch die Pfadauflösung und Deduplizierung.
+
 ## Ausgabeformate
 
 ### XML (Standard)

@@ -38,6 +38,31 @@ repomix --remote user/repo --remote-branch main
 repomix --remote user/repo --remote-branch 935b695
 ```
 
+### File List Input (stdin)
+
+Pass file paths via stdin for ultimate flexibility:
+
+```bash
+# Using find command
+find src -name "*.ts" -type f | repomix --stdin
+
+# Using git to get tracked files
+git ls-files "*.ts" | repomix --stdin
+
+# Using ls with glob patterns
+ls src/**/*.ts | repomix --stdin
+
+# From a file containing file paths
+cat file-list.txt | repomix --stdin
+
+# Direct input with echo
+echo -e "src/index.ts\nsrc/utils.ts" | repomix --stdin
+```
+
+The `--stdin` option allows you to pipe a list of file paths to Repomix, giving you ultimate flexibility in selecting which files to pack.
+
+> [!NOTE]
+> When using `--stdin`, file paths can be relative or absolute, and Repomix will automatically handle path resolution and deduplication.
 
 ### Code Compression
 

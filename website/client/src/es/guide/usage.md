@@ -38,6 +38,32 @@ repomix --remote usuario/repositorio --remote-branch main
 repomix --remote usuario/repositorio --remote-branch 935b695
 ```
 
+### Entrada de lista de archivos (stdin)
+
+Pasa rutas de archivos a través de stdin para máxima flexibilidad:
+
+```bash
+# Usando el comando find
+find src -name "*.ts" -type f | repomix --stdin
+
+# Usando git para obtener archivos rastreados
+git ls-files "*.ts" | repomix --stdin
+
+# Usando ls con patrones glob
+ls src/**/*.ts | repomix --stdin
+
+# Desde un archivo que contiene rutas de archivos
+cat file-list.txt | repomix --stdin
+
+# Entrada directa con echo
+echo -e "src/index.ts\nsrc/utils.ts" | repomix --stdin
+```
+
+La opción `--stdin` te permite canalizar una lista de rutas de archivos a Repomix, brindando máxima flexibilidad en la selección de qué archivos empaquetar.
+
+> [!NOTE]
+> Cuando uses `--stdin`, las rutas de archivos pueden ser relativas o absolutas, y Repomix manejará automáticamente la resolución de rutas y la eliminación de duplicados.
+
 ## Formatos de salida
 
 ### XML (predeterminado)

@@ -4,7 +4,7 @@ import themeTomorrowUrl from 'ace-builds/src-noconflict/theme-tomorrow?url';
 import themeTomorrowNightUrl from 'ace-builds/src-noconflict/theme-tomorrow_night?url';
 import { BarChart2, Copy, Download, GitFork, HeartHandshake, PackageSearch, Share, Star } from 'lucide-vue-next';
 import { useData } from 'vitepress';
-import { computed, onMounted, ref, watch } from 'vue';
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { VAceEditor } from 'vue3-ace-editor';
 import type { PackResult } from '../api/client';
 import {
@@ -31,6 +31,9 @@ const shared = ref(false);
 const canShare = ref(canShareFiles());
 const { isDark } = useData();
 const editorInstance = ref<Ace.Editor | null>(null);
+const isMobile = ref(false);
+const tooltipContainer = ref<HTMLElement | null>(null);
+const tooltipContent = ref<HTMLElement | null>(null);
 
 const editorOptions = computed(() => ({
   ...getEditorOptions(),
@@ -70,6 +73,12 @@ const handleShare = async (event: Event) => {
   event.preventDefault();
   event.stopPropagation();
 
+  // Only allow sharing on mobile devices with Web Share API support
+  if (!isMobile.value || !canShare.value) {
+    console.log('Share is only available on mobile devices');
+    return;
+  }
+
   const success = await shareResult(props.result.content, props.result.format, props.result);
   if (success) {
     shared.value = true;
@@ -83,6 +92,28 @@ const handleShare = async (event: Event) => {
 
 const handleEditorMount = (editor: Ace.Editor) => {
   editorInstance.value = editor;
+};
+
+const updateTooltipPosition = () => {
+  if (!tooltipContainer.value || !tooltipContent.value || isMobile.value) return;
+
+  const containerRect = tooltipContainer.value.getBoundingClientRect();
+  const tooltipEl = tooltipContent.value;
+
+  // Position above the button with proper spacing for the arrow (like existing tooltips)
+  tooltipEl.style.top = `${containerRect.top - 46}px`;
+  tooltipEl.style.left = `${containerRect.left + containerRect.width / 2}px`;
+
+  // Show tooltip (override CSS hover states)
+  tooltipEl.style.opacity = '1';
+  tooltipEl.style.visibility = 'visible';
+};
+
+const hideTooltip = () => {
+  if (tooltipContent.value) {
+    tooltipContent.value.style.opacity = '0';
+    tooltipContent.value.style.visibility = 'hidden';
+  }
 };
 
 const messages = [
@@ -110,6 +141,29 @@ const supportMessage = computed(() => ({
   text: messages[currentMessageIndex.value].text,
   color: messages[currentMessageIndex.value].color,
 }));
+
+const handleResize = () => {
+  isMobile.value = window.innerWidth <= 768;
+};
+
+const handleScroll = () => {
+  // Hide tooltip on scroll to prevent detachment from button
+  if (tooltipContent.value) {
+    tooltipContent.value.style.opacity = '0';
+    tooltipContent.value.style.visibility = 'hidden';
+  }
+};
+
+onMounted(() => {
+  isMobile.value = window.innerWidth <= 768;
+  window.addEventListener('resize', handleResize);
+  window.addEventListener('scroll', handleScroll, { passive: true });
+});
+
+onUnmounted(() => {
+  window.removeEventListener('resize', handleResize);
+  window.removeEventListener('scroll', handleScroll);
+});
 </script>
 
 <template>
@@ -132,10 +186,10 @@ const supportMessage = computed(() => ({
         <dl v-if="result.metadata.summary">
           <dt>Total Files</dt>
           <dd>{{ result.metadata.summary.totalFiles.toLocaleString() }} <span class="unit">files</span></dd>
-          <dt>Total Size</dt>
-          <dd>{{ result.metadata.summary.totalCharacters.toLocaleString() }} <span class="unit">chars</span></dd>
           <dt>Total Tokens</dt>
           <dd>{{ result.metadata.summary.totalTokens.toLocaleString() }} <span class="unit">tokens</span></dd>
+          <dt>Total Size</dt>
+          <dd>{{ result.metadata.summary.totalCharacters.toLocaleString() }} <span class="unit">chars</span></dd>
         </dl>
       </div>
 
@@ -145,7 +199,7 @@ const supportMessage = computed(() => ({
           <li v-for="file in result.metadata.topFiles" :key="file.path">
             <div class="file-path">{{ file.path }}</div>
             <div class="file-stats">
-              {{ file.charCount.toLocaleString() }} <span class="unit">chars</span> <span class="separator-unit">|</span> {{ file.tokenCount.toLocaleString() }} <span class="unit">tokens</span> <span class="separator-unit">|</span> {{ ((file.tokenCount / result.metadata.summary.totalTokens) * 100).toFixed(1) }}<span class="unit">%</span>
+              {{ file.tokenCount.toLocaleString() }} <span class="unit">tokens</span> <span class="separator-unit">|</span> {{ file.charCount.toLocaleString() }} <span class="unit">chars</span> <span class="separator-unit">|</span> {{ ((file.tokenCount / result.metadata.summary.totalTokens) * 100).toFixed(1) }}<span class="unit">%</span>
             </div>
           </li>
         </ol>
@@ -170,16 +224,22 @@ const supportMessage = computed(() => ({
           Download
         </button>
         <div v-if="canShare" class="mobile-only" style="flex-basis: 100%"></div>
-        <button
-          v-if="canShare"
-          class="action-button mobile-only"
-          @click="handleShare"
-          :class="{ shared }"
-          aria-label="Share output via mobile apps"
-        >
-          <Share :size="16" />
-          {{ shared ? 'Shared!' : 'Open with your app' }}
-        </button>
+        <div v-if="canShare" class="tooltip-container" ref="tooltipContainer" @mouseenter="updateTooltipPosition" @mouseleave="hideTooltip">
+          <button
+            class="action-button"
+            @click="handleShare"
+            :class="{ shared }"
+            :disabled="!isMobile"
+            aria-label="Share output via mobile apps"
+          >
+            <Share :size="16" />
+            {{ shared ? 'Shared!' : 'Open with your app' }}
+          </button>
+          <div class="tooltip-content desktop-only" ref="tooltipContent">
+            Only available on mobile devices
+            <div class="tooltip-arrow"></div>
+          </div>
+        </div>
       </div>
       <div class="editor-container">
         <VAceEditor
@@ -419,5 +479,72 @@ dd {
   .mobile-only {
     display: inline-flex;
   }
+}
+
+.tooltip-container {
+  position: relative;
+  display: inline-block;
+}
+
+.tooltip-content {
+  position: fixed;
+  transform: translateX(-50%);
+  margin-bottom: 8px;
+  padding: 8px 12px;
+  background: #333;
+  color: white;
+  font-size: 0.875rem;
+  white-space: nowrap;
+  border-radius: 4px;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.2s, visibility 0.2s;
+  z-index: 9999;
+  pointer-events: none;
+  text-align: left;
+}
+
+.tooltip-arrow {
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border-width: 8px;
+  border-style: solid;
+  border-color: #333 transparent transparent transparent;
+}
+
+.tooltip-container:hover .tooltip-content {
+  opacity: 1;
+  visibility: visible;
+}
+
+.desktop-only {
+  display: block;
+}
+
+@media (max-width: 768px) {
+  .desktop-only {
+    display: none;
+  }
+}
+
+.action-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.action-button:disabled:hover {
+  opacity: 0.5;
+}
+
+/* Dark mode support for tooltip */
+html.dark .tooltip-content {
+  background: #333;
+  color: #ffffff;
+}
+
+html.dark .tooltip-arrow {
+  border-color: #333 transparent transparent transparent;
 }
 </style>
