@@ -3,7 +3,7 @@ description: "Pack repository contents into a single file that is easy for LLMs 
 author: "Kazuki Yamada <koukun0120@gmail.com>"
 branding:
   icon: archive
-  color: purple
+  color: orange
 
 inputs:
   directories:
@@ -59,37 +59,37 @@ runs:
         # Using an array for safer command execution
         # Safely split directories input into an array, handling spaces correctly
         IFS=' ' read -r -a ARGS <<< "${{ inputs.directories }}"
-        
+
         if [ -n "${{ inputs.include }}" ]; then
           ARGS+=(--include "${{ inputs.include }}")
         fi
-        
+
         if [ -n "${{ inputs.ignore }}" ]; then
           ARGS+=(--ignore "${{ inputs.ignore }}")
         fi
-        
+
         if [ "${{ inputs.compress }}" = "false" ]; then
           ARGS+=(--no-compress)
         else
           ARGS+=(--compress)
         fi
-        
+
         if [ -n "${{ inputs.style }}" ]; then
           ARGS+=(--style "${{ inputs.style }}")
         fi
-        
+
         ARGS+=(--output "${{ inputs.output }}")
-        
+
         # Only add additional args if not empty
         if [ -n "${{ inputs.additional-args }}" ]; then
           # Use safer parsing for additional arguments
           IFS=' ' read -r -a ADDITIONAL_ARGS <<< "${{ inputs.additional-args }}"
           ARGS+=("${ADDITIONAL_ARGS[@]}")
         fi
-        
+
         echo "Running: repomix ${ARGS[*]}"
         repomix "${ARGS[@]}"
-        
+
         echo "output_file=${{ inputs.output }}" >> "$GITHUB_OUTPUT"
 
 outputs:

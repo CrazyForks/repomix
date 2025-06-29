@@ -6,7 +6,7 @@ Repomix là một dự án mã nguồn mở và chúng tôi hoan nghênh đóng 
 
 ### Yêu cầu
 
-- Node.js (phiên bản 16 trở lên)
+- Node.js (phiên bản 20 trở lên)
 - npm hoặc yarn
 - Git
 

@@ -53,6 +53,50 @@ npx repomix --remote https://github.com/yamadashy/repomix/tree/main
 npx repomix --remote https://github.com/yamadashy/repomix/commit/836abcd7335137228ad77feb28655d85712680f1
 ```
 
+## Input Daftar File (stdin)
+
+Masukkan jalur file melalui stdin untuk fleksibilitas maksimum:
+
+```bash
+# Menggunakan perintah find
+find src -name "*.ts" -type f | repomix --stdin
+
+# Menggunakan git untuk mendapatkan file yang terlacak
+git ls-files "*.ts" | repomix --stdin
+
+# Menggunakan grep untuk mencari file yang berisi konten tertentu
+grep -l "TODO" **/*.ts | repomix --stdin
+
+# Menggunakan ripgrep untuk mencari file dengan konten tertentu
+rg -l "TODO|FIXME" --type ts | repomix --stdin
+
+# Menggunakan ripgrep (rg) untuk mencari file
+rg --files --type ts | repomix --stdin
+
+# Menggunakan sharkdp/fd untuk mencari file
+fd -e ts | repomix --stdin
+
+# Menggunakan fzf untuk memilih dari semua file
+fzf -m | repomix --stdin
+
+# Pemilihan file interaktif dengan fzf
+find . -name "*.ts" -type f | fzf -m | repomix --stdin
+
+# Menggunakan ls dengan pola glob
+ls src/**/*.ts | repomix --stdin
+
+# Dari file yang berisi jalur file
+cat file-list.txt | repomix --stdin
+
+# Input langsung dengan echo
+echo -e "src/index.ts\nsrc/utils.ts" | repomix --stdin
+```
+
+Opsi `--stdin` memungkinkan Anda untuk mem-pipe daftar jalur file ke Repomix, memberikan fleksibilitas maksimum dalam memilih file mana yang akan dikemas.
+
+> [!NOTE]
+> Saat menggunakan `--stdin`, jalur file dapat berupa jalur relatif atau absolut, dan Repomix akan menangani resolusi jalur dan deduplikasi secara otomatis.
+
 ## Format Output
 
 Pilih format output yang Anda inginkan:

@@ -7,7 +7,7 @@ Có nhiều cách để cài đặt và sử dụng Repomix. Chọn phương ph�
 Cách đơn giản nhất để sử dụng Repomix mà không cần cài đặt là thông qua `npx`:
 
 ```bash
-npx repomix
+npx repomix@latest
 ```
 
 Lệnh này sẽ tải và chạy phiên bản mới nhất của Repomix trực tiếp từ npm.

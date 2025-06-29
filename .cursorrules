@@ -1,3 +1,1 @@
-# Important
-- Follow all AI instructions in the `.github/instructions/` directory
-- The base instructions are located in `.github/instructions/base.instructions.md`
+Please make sure to check the rules written in `.agents/rules/base.md` as they contain important project-specific guidelines and instructions.

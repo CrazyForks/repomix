@@ -1,13 +1,30 @@
-FROM node:23-alpine
+# ==============================================================================
+# Base stage
+# ==============================================================================
+FROM node:24-alpine AS base
 
+# Install Git (required for VitePress)
 RUN apk add --no-cache git
 
 WORKDIR /app
 
+# ==============================================================================
+# Dependencies installation stage
+# ==============================================================================
+FROM base AS deps
+
+# Copy package.json and package-lock.json
 COPY package*.json ./
 
-RUN npm i
+# Install all dependencies (with npm cache optimization)
+RUN npm ci && npm cache clean --force
 
+# ==============================================================================
+# Development stage
+# ==============================================================================
+FROM deps AS development
+
+# Copy source code
 COPY . .
 
 EXPOSE 5173

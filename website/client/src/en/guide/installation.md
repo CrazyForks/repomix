@@ -3,7 +3,7 @@
 ## Using npx (No Installation Required)
 
 ```bash
-npx repomix
+npx repomix@latest
 ```
 
 ## Global Installation
@@ -71,7 +71,7 @@ Get instant access to Repomix directly from any GitHub repository! Our Chrome ex
 
 ## System Requirements
 
-- Node.js: ≥ 18.0.0
+- Node.js: ≥ 20.0.0
 - Git: Required for remote repository processing
 
 ## Verification

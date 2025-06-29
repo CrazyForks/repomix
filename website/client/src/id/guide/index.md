@@ -2,18 +2,24 @@
 
 <script setup>
 import HomeBadges from '../../../components/HomeBadges.vue'
+import YouTubeVideo from '../../../components/YouTubeVideo.vue'
+import { VIDEO_IDS } from '../../../utils/videos'
 </script>
 
 Repomix adalah alat yang mengemas seluruh repositori Anda menjadi satu file yang ramah AI. Ini dirancang untuk membantu Anda menyediakan basis kode Anda ke Model Bahasa Besar (LLM) seperti ChatGPT, DeepSeek, Perplexity, Gemini, Gemma, Llama, Grok, dan lainnya.
 
+<YouTubeVideo :videoId="VIDEO_IDS.REPOMIX_DEMO" />
+
 <HomeBadges />
+
+[![Sponsors](https://cdn.jsdelivr.net/gh/yamadashy/sponsor-list/sponsors/sponsors.png)](https://github.com/sponsors/yamadashy)
 
 ## Mulai Cepat
 
 Jalankan perintah ini di direktori proyek Anda:
 
 ```bash
-npx repomix
+npx repomix@latest
 ```
 
 Itu saja! Anda akan menemukan file `repomix-output.xml` yang berisi seluruh repositori Anda dalam format yang ramah AI.

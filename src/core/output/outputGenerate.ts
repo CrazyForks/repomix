@@ -31,7 +31,7 @@ const calculateMarkdownDelimiter = (files: ReadonlyArray<ProcessedFile>): string
 const createRenderContext = (outputGeneratorContext: OutputGeneratorContext): RenderContext => {
   return {
     generationHeader: generateHeader(outputGeneratorContext.config, outputGeneratorContext.generationDate),
-    summaryPurpose: generateSummaryPurpose(),
+    summaryPurpose: generateSummaryPurpose(outputGeneratorContext.config),
     summaryFileFormat: generateSummaryFileFormat(),
     summaryUsageGuidelines: generateSummaryUsageGuidelines(
       outputGeneratorContext.config,

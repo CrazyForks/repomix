@@ -24,7 +24,14 @@ features:
 
 ---
 
+<script setup>
+import YouTubeVideo from '../../components/YouTubeVideo.vue'
+import { VIDEO_IDS } from '../../utils/videos'
+</script>
+
 <div class="cli-section">
+
+[![Sponsors](https://cdn.jsdelivr.net/gh/yamadashy/sponsor-list/sponsors/sponsors.png)](https://github.com/sponsors/yamadashy)
 
 ## 🏆 Indicação para os Open Source Awards
 
@@ -33,6 +40,12 @@ Estamos honrados! O Repomix foi indicado na categoria **Powered by AI** no [JSNa
 Isso não teria sido possível sem todos vocês que usam e apoiam o Repomix. Obrigado!
 
 Se o Repomix ajudou você a analisar ou empacotar bases de código para ferramentas de IA, ficaríamos gratos pelo seu voto na categoria **Powered by AI**.
+
+## O que é o Repomix?
+
+O Repomix é uma ferramenta poderosa que empacota toda a sua base de código em um único arquivo compatível com IA. Seja trabalhando em revisões de código, refatoração ou precisando de assistência de IA para seu projeto, o Repomix facilita o compartilhamento de todo o contexto do seu repositório com ferramentas de IA.
+
+<YouTubeVideo :videoId="VIDEO_IDS.REPOMIX_DEMO" />
 
 ## Início Rápido
 
@@ -64,7 +77,7 @@ O Repomix pode ser usado como uma ferramenta de linha de comando, oferecendo rec
 Você pode experimentar o Repomix instantaneamente no diretório do seu projeto sem instalação:
 
 ```bash
-npx repomix
+npx repomix@latest
 ```
 
 Ou instale globalmente para uso repetido:
@@ -190,6 +203,18 @@ Crie um `repomix.config.json` para configurações persistentes:
   }
 }
 ```
+
+## Guia de Usuários Avançados
+
+O Repomix oferece recursos poderosos para casos de uso avançados. Aqui estão alguns guias essenciais para usuários avançados:
+
+- **[Servidor MCP](./guide/mcp-server)** - Integração do Model Context Protocol para assistentes de IA
+- **[GitHub Actions](./guide/github-actions)** - Automatize o empacotamento de código base em workflows de CI/CD
+- **[Compressão de Código](./guide/code-compress)** - Compressão inteligente baseada em Tree-sitter (~70% de redução de tokens)
+- **[Usar como Biblioteca](./guide/development/using-repomix-as-a-library)** - Integre o Repomix em suas aplicações Node.js
+- **[Instruções Personalizadas](./guide/custom-instructions)** - Adicione prompts e instruções personalizadas às saídas
+- **[Recursos de Segurança](./guide/security)** - Integração Secretlint incorporada e verificações de segurança
+- **[Melhores Práticas](./guide/tips/best-practices)** - Otimize seus workflows de IA com estratégias comprovadas
 
 ### Mais Exemplos
 ::: tip Precisa de mais ajuda? 💡

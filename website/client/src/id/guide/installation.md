@@ -8,7 +8,7 @@ Repomix dapat diinstal dengan berbagai cara, tergantung pada kebutuhan dan prefe
 Cara tercepat untuk mencoba Repomix adalah dengan menggunakan `npx` tanpa instalasi:
 
 ```bash
-npx repomix
+npx repomix@latest
 ```
 
 Ini akan mengunduh dan menjalankan Repomix secara langsung di direktori proyek Anda.

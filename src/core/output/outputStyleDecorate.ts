@@ -89,9 +89,15 @@ export const generateHeader = (config: RepomixConfigMerged, generationDate: stri
   return `${description}, combined into a single document by Repomix.\n${processingInfo}`.trim();
 };
 
-export const generateSummaryPurpose = (): string => {
+export const generateSummaryPurpose = (config: RepomixConfigMerged): string => {
+  const info = analyzeContent(config);
+
+  const contentDescription = info.selection.isEntireCodebase
+    ? "the entire repository's contents"
+    : "a subset of the repository's contents that is considered the most important context";
+
   return `
-This file contains a packed representation of the entire repository's contents.
+This file contains a packed representation of ${contentDescription}.
 It is designed to be easily consumable by AI systems for analysis, code review,
 or other automated processes.
 `.trim();

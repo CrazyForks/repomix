@@ -24,7 +24,14 @@ features:
 
 ---
 
+<script setup>
+import YouTubeVideo from '../../components/YouTubeVideo.vue'
+import { VIDEO_IDS } from '../../utils/videos'
+</script>
+
 <div class="cli-section">
+
+[![Sponsors](https://cdn.jsdelivr.net/gh/yamadashy/sponsor-list/sponsors/sponsors.png)](https://github.com/sponsors/yamadashy)
 
 ## 🏆 開源獎項提名
 
@@ -33,6 +40,12 @@ features:
 這一切都離不開所有使用和支持 Repomix 的用戶。謝謝大家！
 
 如果 Repomix 幫助您分析或打包程式碼庫用於 AI 工具，我們將非常感謝您在 **Powered by AI** 類別中為我們投票。
+
+## 什麼是 Repomix？
+
+Repomix 是一個強大的工具，可以將您的整個程式碼庫打包到一個 AI 友好的檔案中。無論您是在進行程式碼審查、重構，還是需要 AI 協助您的專案，Repomix 都可以輕鬆地與 AI 工具共享您的整個儲存庫上下文。
+
+<YouTubeVideo :videoId="VIDEO_IDS.REPOMIX_DEMO" />
 
 ## 快速開始
 
@@ -66,7 +79,7 @@ Repomix 可以作為命令行工具使用，提供強大的功能和自定義選
 您可以在專案目錄中無需安裝即可立即嘗試 Repomix：
 
 ```bash
-npx repomix
+npx repomix@latest
 ```
 
 或者全局安裝以便重複使用：
@@ -194,6 +207,18 @@ repomix --style plain
   }
 }
 ```
+
+## 進階使用者指南
+
+Repomix 為進階使用案例提供強大的功能。以下是進階使用者的一些重要指南：
+
+- **[MCP 伺服器](./guide/mcp-server)** - AI 助理的 Model Context Protocol 整合
+- **[GitHub Actions](./guide/github-actions)** - 在 CI/CD 工作流程中自動化程式碼庫封裝
+- **[程式碼壓縮](./guide/code-compress)** - 基於 Tree-sitter 的智慧壓縮（約 70% 令牌減少）
+- **[作為函式庫使用](./guide/development/using-repomix-as-a-library)** - 將 Repomix 整合到您的 Node.js 應用程式中
+- **[自訂指令](./guide/custom-instructions)** - 為輸出新增自訂提示和指令
+- **[安全功能](./guide/security)** - 內建 Secretlint 整合和安全檢查
+- **[最佳實務](./guide/tips/best-practices)** - 使用經過驗證的策略最佳化您的 AI 工作流程
 
 ### 更多示例
 ::: tip 需要更多幫助？ 💡

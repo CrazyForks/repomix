@@ -3,7 +3,7 @@
 ## Usando npx (Nenhuma Instalação Necessária)
 
 ```bash
-npx repomix
+npx repomix@latest
 ```
 
 ## Instalação Global
@@ -71,7 +71,7 @@ Obtenha acesso instantâneo ao Repomix diretamente de qualquer repositório GitH
 
 ## Requisitos de Sistema
 
-- Node.js: ≥ 18.0.0
+- Node.js: ≥ 20.0.0
 - Git: Necessário para processamento de repositório remoto
 
 ## Verificação

@@ -1,10 +1,8 @@
 <script setup lang="ts">
-import JSZip from 'jszip';
 import { AlertTriangle, FolderOpen } from 'lucide-vue-next';
-import { ref } from 'vue';
+import { useFileUpload } from '../../composables/useFileUpload';
+import { useZipProcessor } from '../../composables/useZipProcessor';
 import PackButton from './PackButton.vue';
-
-const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 
 const props = defineProps<{
   loading: boolean;
@@ -15,185 +13,82 @@ const emit = defineEmits<{
   upload: [file: File];
 }>();
 
-const fileInput = ref<HTMLInputElement | null>(null);
-const dragActive = ref(false);
-const selectedFolder = ref<string | null>(null);
-const errorMessage = ref<string | null>(null);
+const { createZipFromFiles } = useZipProcessor();
 
-// Common validation logic
-const validateFolder = (files: File[]): boolean => {
-  errorMessage.value = null;
-
-  if (files.length === 0) {
-    errorMessage.value = 'The folder is empty.';
-    return false;
-  }
-
-  const totalSize = files.reduce((sum, file) => sum + file.size, 0);
-  if (totalSize > MAX_FILE_SIZE) {
-    const sizeMB = (totalSize / (1024 * 1024)).toFixed(1);
-    errorMessage.value = `File size (${sizeMB}MB) exceeds the 10MB limit`;
-    return false;
-  }
-
-  return true;
-};
-
-// Create ZIP file
-const createZipFile = async (files: File[], folderName: string): Promise<File> => {
-  const zip = new JSZip();
-
-  for (const file of files) {
-    const path = file.webkitRelativePath || file.name;
-    zip.file(path, file);
-  }
-
-  const zipBlob = await zip.generateAsync({ type: 'blob' });
-  return new File([zipBlob], `${folderName}.zip`);
-};
-
-// Common folder processing logic
-const processFolder = async (files: File[], folderName: string): Promise<void> => {
-  if (!validateFolder(files)) {
-    selectedFolder.value = null;
-    return;
-  }
-
-  const zipFile = await createZipFile(files, folderName);
-  selectedFolder.value = folderName;
-  emit('upload', zipFile);
-};
-
-// File selection handler
-const handleFileSelect = async (files: FileList | null): Promise<void> => {
-  if (!files || files.length === 0) return;
-
-  const fileArray = Array.from(files);
-  const folderName = files[0].webkitRelativePath.split('/')[0];
-
-  await processFolder(fileArray, folderName);
-};
-
-// Folder drop handler
-const handleFolderDrop = async (event: DragEvent): Promise<void> => {
-  event.preventDefault();
-  dragActive.value = false;
-  errorMessage.value = null;
-
-  if (!event.dataTransfer?.items?.length) return;
-
-  // Check directory reading capability
-  if (!('webkitGetAsEntry' in DataTransferItem.prototype)) {
-    errorMessage.value = "Your browser doesn't support folder drop. Please use the browse button instead.";
-    return;
-  }
-
-  const entry = event.dataTransfer.items[0].webkitGetAsEntry();
-  if (!entry?.isDirectory) {
-    errorMessage.value = 'Please drop a folder, not a file.';
-    return;
-  }
-
-  const folderName = entry.name;
-
-  try {
-    const files = await collectFilesFromEntry(entry);
-    await processFolder(files, folderName);
-  } catch (error) {
-    console.error('Error processing dropped folder:', error);
-    errorMessage.value = 'Failed to process the folder. Please try again or use the browse button.';
-  }
-};
-
-const isFileEntry = (entry: FileSystemEntry): entry is FileSystemFileEntry => {
-  return entry.isFile;
-};
-const isDirectoryEntry = (entry: FileSystemEntry): entry is FileSystemDirectoryEntry => {
-  return entry.isDirectory;
-};
-
-// Recursively collect files from entry
-const collectFilesFromEntry = async (entry: FileSystemEntry, path = ''): Promise<File[]> => {
-  if (isFileEntry(entry)) {
-    return new Promise((resolve, reject) => {
-      entry.file((file: File) => {
-        // Create custom file with path information
-        const customFile = new File([file], file.name, {
-          type: file.type,
-          lastModified: file.lastModified,
-        });
-
-        // Add relative path information
-        Object.defineProperty(customFile, 'webkitRelativePath', {
-          value: path ? `${path}/${file.name}` : file.name,
-        });
-
-        resolve([customFile]);
-      }, reject);
-    });
-  }
-
-  if (isDirectoryEntry(entry) && entry.createReader) {
-    return new Promise((resolve, reject) => {
-      const dirReader = entry.createReader();
-      const allFiles: File[] = [];
-
-      // Function to read entries in directory
-      function readEntries() {
-        dirReader.readEntries(async (entries: FileSystemEntry[]) => {
-          if (entries.length === 0) {
-            resolve(allFiles);
-          } else {
-            try {
-              // Process each entry
-              for (const childEntry of entries) {
-                const newPath = path ? `${path}/${childEntry.name}` : childEntry.name;
-                const files = await collectFilesFromEntry(childEntry, newPath);
-                allFiles.push(...files);
-              }
-              // Continue reading (some browsers return entries in batches)
-              readEntries();
-            } catch (error) {
-              reject(error);
-            }
-          }
-        }, reject);
+const {
+  fileInput,
+  dragActive,
+  selectedItem: selectedFolder,
+  errorMessage,
+  hasError,
+  isValid,
+  inputAttributes,
+  handleFileSelect,
+  handleDragOver,
+  handleDragLeave,
+  handleDrop,
+  triggerFileInput,
+  clearSelection,
+} = useFileUpload({
+  mode: 'folder',
+  placeholder: 'Drop your folder here or click to browse (max 10MB)',
+  icon: 'folder',
+  options: {
+    maxFileSize: 10 * 1024 * 1024, // 10MB
+    webkitdirectory: true,
+    validateFiles: (files: File[]) => {
+      if (files.length === 0) {
+        return { valid: false, error: 'The folder is empty.' };
       }
+      return { valid: true };
+    },
+    preprocessFiles: async (files: File[], folderName?: string) => {
+      if (!folderName) {
+        throw new Error('Folder name is required');
+      }
+      return await createZipFromFiles(files, folderName);
+    },
+  },
+});
 
-      readEntries();
-    });
+async function onFileSelect(files: FileList | null) {
+  const result = await handleFileSelect(files);
+  if (result.success && result.result) {
+    emit('upload', result.result);
   }
+}
 
-  return []; // If neither file nor directory
-};
+async function onDrop(event: DragEvent) {
+  const result = await handleDrop(event);
+  if (result.success && result.result) {
+    emit('upload', result.result);
+  }
+}
 
-const triggerFileInput = () => {
-  fileInput.value?.click();
-};
+function clearFolder() {
+  clearSelection();
+}
 </script>
 
 <template>
   <div class="upload-wrapper">
     <div
       class="upload-container"
-      :class="{ 'drag-active': dragActive, 'has-error': errorMessage }"
-      @dragover.prevent="dragActive = true"
-      @dragleave="dragActive = false"
-      @drop.prevent="handleFolderDrop($event)"
+      :class="{ 'drag-active': dragActive, 'has-error': hasError }"
+      @dragover.prevent="handleDragOver"
+      @dragleave="handleDragLeave"
+      @drop.prevent="onDrop"
       @click="triggerFileInput"
     >
       <input
         ref="fileInput"
-        type="file"
-        directory
-        webkitdirectory
-        mozdirectory
+        v-bind="inputAttributes"
         class="hidden-input"
-        @change="(e) => handleFileSelect((e.target as HTMLInputElement).files)"
+        @change="(e) => onFileSelect((e.target as HTMLInputElement).files)"
       />
       <div class="upload-content">
         <div class="upload-icon">
-          <AlertTriangle v-if="errorMessage" class="icon-error" size="20" />
+          <AlertTriangle v-if="hasError" class="icon-error" size="20" />
           <FolderOpen v-else class="icon-folder" size="20" />
         </div>
         <div class="upload-text">
@@ -202,7 +97,7 @@ const triggerFileInput = () => {
           </p>
           <p v-else-if="selectedFolder" class="selected-file">
             Selected: {{ selectedFolder }}
-            <button class="clear-button" @click.stop="selectedFolder = null">×</button>
+            <button class="clear-button" @click.stop="clearFolder">×</button>
           </p>
           <template v-else>
             <p>Drop your folder here or click to browse (max 10MB)</p>
@@ -214,7 +109,7 @@ const triggerFileInput = () => {
   <div v-if="showButton" class="pack-button-container">
     <PackButton
       :loading="loading"
-      :isValid="!!selectedFolder"
+      :isValid="isValid"
     />
   </div>
 </template>

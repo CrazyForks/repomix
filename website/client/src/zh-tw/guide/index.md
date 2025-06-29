@@ -2,18 +2,24 @@
 
 <script setup>
 import HomeBadges from '../../../components/HomeBadges.vue'
+import YouTubeVideo from '../../../components/YouTubeVideo.vue'
+import { VIDEO_IDS } from '../../../utils/videos'
 </script>
 
 Repomix 是一個將程式碼庫打包成單個 AI 友好文件的工具。它專為幫助你將程式碼提供給大型語言模型（如 ChatGPT、DeepSeek、Perplexity、Gemini、Gemma、Llama、Grok 等）而設計。
 
+<YouTubeVideo :videoId="VIDEO_IDS.REPOMIX_DEMO" />
+
 <HomeBadges />
+
+[![Sponsors](https://cdn.jsdelivr.net/gh/yamadashy/sponsor-list/sponsors/sponsors.png)](https://github.com/sponsors/yamadashy)
 
 ## 快速開始
 
 在你的專案目錄中執行以下命令：
 
 ```bash
-npx repomix
+npx repomix@latest
 ```
 
 就這麼簡單！你會在當前目錄中找到一個 `repomix-output.xml` 文件，其中包含了以 AI 友好格式整理的整個程式碼庫。

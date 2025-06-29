@@ -1,5 +1,5 @@
 ---
-applyTo: '**'
+description: Guidelines for working with the Repomix documentation website. Apply these rules when modifying website content, adding translations, updating navigation, or implementing new documentation features.
 ---
 
 # Website Documentation
@@ -17,6 +17,7 @@ The website documentation is available in the following languages:
 - Portuguese Brazilian (Português do Brasil) (pt-br)
 - Indonesian (Bahasa Indonesia) (id)
 - Vietnamese (Tiếng Việt) (vi)
+- Hindi (हिन्दी) (hi)
 
 All translations should be accurate and maintain consistent terminology across languages. When adding new features or documentation, please ensure that the English version is updated first, followed by translations in other languages.
 

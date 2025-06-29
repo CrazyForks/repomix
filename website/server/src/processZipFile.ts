@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import AdmZip from 'adm-zip';
+import { unzip } from 'fflate';
 import { type CliOptions, runDefaultAction, setLogLevel } from 'repomix';
 import { packRequestSchema } from './schemas/request.js';
 import type { PackOptions, PackResult } from './types.js';
@@ -54,7 +54,7 @@ export async function processZipFile(
   );
 
   // Check if the result is already cached
-  const cachedResult = cache.get(cacheKey);
+  const cachedResult = await cache.get(cacheKey);
   if (cachedResult) {
     return cachedResult;
   }
@@ -123,7 +123,7 @@ export async function processZipFile(
     };
 
     // Save the result to cache
-    cache.set(cacheKey, packResultData);
+    await cache.set(cacheKey, packResultData);
 
     return packResultData;
   } catch (error) {
@@ -145,27 +145,33 @@ export async function processZipFile(
 }
 
 /**
- * Enhanced ZIP extraction with security checks
+ * Enhanced ZIP extraction with security checks using fflate
  */
 async function extractZipWithSecurity(file: File, destPath: string): Promise<void> {
   try {
     const arrayBuffer = await file.arrayBuffer();
-    const buffer = Buffer.from(arrayBuffer);
-    const zip = new AdmZip(buffer);
+    const buffer = new Uint8Array(arrayBuffer);
 
-    // Get all entries for validation
-    const entries = zip.getEntries();
+    // Unzip using fflate with promise wrapper
+    const files = await new Promise<Record<string, Uint8Array>>((resolve, reject) => {
+      unzip(buffer, (err, data) => {
+        if (err) reject(err);
+        else resolve(data);
+      });
+    });
+
+    const filePaths = Object.keys(files);
 
     // 1. Check number of files
-    if (entries.length > ZIP_SECURITY_LIMITS.MAX_FILES) {
+    if (filePaths.length > ZIP_SECURITY_LIMITS.MAX_FILES) {
       throw new AppError(
-        `ZIP contains too many files (${entries.length}). Maximum allowed: ${ZIP_SECURITY_LIMITS.MAX_FILES}`,
+        `ZIP contains too many files (${filePaths.length}). Maximum allowed: ${ZIP_SECURITY_LIMITS.MAX_FILES}`,
         413,
       );
     }
 
     // 2. Calculate total uncompressed size
-    const totalUncompressedSize = entries.reduce((sum, entry) => sum + entry.header.size, 0);
+    const totalUncompressedSize = Object.values(files).reduce((sum, data) => sum + data.length, 0);
 
     if (totalUncompressedSize > ZIP_SECURITY_LIMITS.MAX_UNCOMPRESSED_SIZE) {
       throw new AppError(
@@ -190,11 +196,9 @@ async function extractZipWithSecurity(file: File, destPath: string): Promise<voi
     // 4. Validate all entries for path traversal, file extensions, and nesting level
     const processedPaths = new Set<string>();
 
-    for (const entry of entries) {
-      // Skip directories
-      if (entry.isDirectory) continue;
-
-      const entryPath = entry.entryName;
+    for (const entryPath of filePaths) {
+      // Skip directories (fflate doesn't include directory entries, only files)
+      if (entryPath.endsWith('/')) continue;
 
       // 4.1 Check for unsafe paths (directory traversal prevention)
       const normalizedPath = path.normalize(path.join(destPath, entryPath));
@@ -229,9 +233,21 @@ async function extractZipWithSecurity(file: File, destPath: string): Promise<voi
       processedPaths.add(normalizedPath);
     }
 
-    // If all checks pass, extract the ZIP
+    // If all checks pass, extract the files
     await fs.mkdir(destPath, { recursive: true });
-    zip.extractAllTo(destPath, true);
+
+    for (const [filePath, data] of Object.entries(files)) {
+      if (filePath.endsWith('/')) continue; // Skip directories
+
+      const fullPath = path.join(destPath, filePath);
+      const dirPath = path.dirname(fullPath);
+
+      // Create directory if it doesn't exist
+      await fs.mkdir(dirPath, { recursive: true });
+
+      // Write the file
+      await fs.writeFile(fullPath, data);
+    }
   } catch (error) {
     if (error instanceof AppError) {
       throw error;

@@ -3,7 +3,7 @@
 ## 使用 npx（无需安装）
 
 ```bash
-npx repomix
+npx repomix@latest
 ```
 
 ## 全局安装
@@ -71,7 +71,7 @@ docker run -v ./output:/app -it --rm ghcr.io/yamadashy/repomix --remote yamadash
 
 ## 系统要求
 
-- Node.js: ≥ 18.0.0
+- Node.js: ≥ 20.0.0
 - Git: 处理远程仓库时需要
 
 ## 验证安装

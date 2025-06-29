@@ -28,6 +28,7 @@ Repomix menyediakan berbagai opsi baris perintah untuk menyesuaikan perilakunya.
 |------|-----------|
 | `--include` | Pola glob untuk menyertakan file tertentu |
 | `--ignore` | Pola glob untuk mengabaikan file tertentu |
+| `--stdin` | Membaca jalur file dari stdin alih-alih menemukan file secara otomatis |
 | `--no-gitignore` | Mengabaikan file `.gitignore` |
 
 ## Opsi Keamanan
@@ -104,6 +105,14 @@ repomix --diffs --base-branch main
 
 ```bash
 repomix --mcp
+```
+
+### Menggunakan stdin untuk Daftar File
+
+```bash
+find src -name "*.ts" -type f | repomix --stdin
+git ls-files "*.js" | repomix --stdin
+echo -e "src/index.ts\nsrc/utils.ts" | repomix --stdin
 ```
 
 ## Menggunakan Opsi dengan File Konfigurasi

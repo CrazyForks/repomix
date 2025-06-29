@@ -3,7 +3,7 @@
 ## Usando npx (no requiere instalación)
 
 ```bash
-npx repomix
+npx repomix@latest
 ```
 
 ## Instalación global
@@ -71,7 +71,7 @@ Instálala desde el [VSCode Marketplace](https://marketplace.visualstudio.com/it
 
 ## Requisitos del sistema
 
-- Node.js: ≥ 18.0.0
+- Node.js: ≥ 20.0.0
 - Git: Requerido para el procesamiento de repositorios remotos
 
 ## Verificación
