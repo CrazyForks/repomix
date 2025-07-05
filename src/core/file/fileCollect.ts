@@ -1,13 +1,13 @@
 import pc from 'picocolors';
 import type { RepomixConfigMerged } from '../../config/configSchema.js';
 import { logger } from '../../shared/logger.js';
-import { initPiscina } from '../../shared/processConcurrency.js';
+import { initWorker } from '../../shared/processConcurrency.js';
 import type { RepomixProgressCallback } from '../../shared/types.js';
 import type { RawFile } from './fileTypes.js';
 import type { FileCollectTask } from './workers/fileCollectWorker.js';
 
 const initTaskRunner = (numOfTasks: number) => {
-  const pool = initPiscina(numOfTasks, new URL('./workers/fileCollectWorker.js', import.meta.url).href);
+  const pool = initWorker(numOfTasks, new URL('./workers/fileCollectWorker.js', import.meta.url).href);
   return (task: FileCollectTask) => pool.run(task);
 };
 

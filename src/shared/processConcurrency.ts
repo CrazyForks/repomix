@@ -1,5 +1,5 @@
 import os from 'node:os';
-import { Piscina } from 'piscina';
+import { Tinypool } from 'tinypool';
 import { logger } from './logger.js';
 
 export const getProcessConcurrency = (): number => {
@@ -20,14 +20,14 @@ export const getWorkerThreadCount = (numOfTasks: number): { minThreads: number; 
   };
 };
 
-export const initPiscina = (numOfTasks: number, workerPath: string): Piscina => {
+export const initWorker = (numOfTasks: number, workerPath: string): Tinypool => {
   const { minThreads, maxThreads } = getWorkerThreadCount(numOfTasks);
 
   logger.trace(
     `Initializing worker pool with min=${minThreads}, max=${maxThreads} threads. Worker path: ${workerPath}`,
   );
 
-  return new Piscina({
+  return new Tinypool({
     filename: workerPath,
     minThreads,
     maxThreads,

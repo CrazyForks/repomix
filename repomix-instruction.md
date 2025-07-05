@@ -184,7 +184,7 @@ This release adds significant performance improvements for large repositories, m
 # Improvements ⚡
 
 ## Parallel Processing Enhancement (#309)
-- Implemented worker threads using [Piscina](https://github.com/piscinajs/piscina) for parallel processing
+- Implemented worker threads using [Tinypool](https://github.com/tinylibs/tinypool) for parallel processing
 
 ### Benchmark Results
 - `yamadashy.repomix`: No significant change

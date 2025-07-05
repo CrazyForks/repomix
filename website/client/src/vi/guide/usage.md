@@ -50,6 +50,52 @@ repomix --remote https://github.com/yamadashy/repomix/tree/main
 repomix --remote https://github.com/yamadashy/repomix/commit/836abcd7335137228ad77feb28655d85712680f1
 ```
 
+## Nhập danh sách tệp (stdin)
+
+Truyền đường dẫn tệp qua stdin để có tính linh hoạt tối đa:
+
+```bash
+# Sử dụng lệnh find
+find src -name "*.ts" -type f | repomix --stdin
+
+# Sử dụng git để lấy các tệp được theo dõi
+git ls-files "*.ts" | repomix --stdin
+
+# Sử dụng grep để tìm tệp chứa nội dung cụ thể
+grep -l "TODO" **/*.ts | repomix --stdin
+
+# Sử dụng ripgrep để tìm tệp với nội dung cụ thể
+rg -l "TODO|FIXME" --type ts | repomix --stdin
+
+# Sử dụng ripgrep (rg) để tìm tệp
+rg --files --type ts | repomix --stdin
+
+# Sử dụng sharkdp/fd để tìm tệp
+fd -e ts | repomix --stdin
+
+# Sử dụng fzf để chọn từ tất cả các tệp
+fzf -m | repomix --stdin
+
+# Chọn tệp tương tác với fzf
+find . -name "*.ts" -type f | fzf -m | repomix --stdin
+
+# Sử dụng ls với các mẫu glob
+ls src/**/*.ts | repomix --stdin
+
+# Từ một tệp chứa đường dẫn tệp
+cat file-list.txt | repomix --stdin
+
+# Nhập trực tiếp với echo
+echo -e "src/index.ts\nsrc/utils.ts" | repomix --stdin
+```
+
+Tùy chọn `--stdin` cho phép bạn truyền danh sách đường dẫn tệp tới Repomix, mang lại tính linh hoạt tối đa trong việc chọn tệp nào để đóng gói.
+
+Khi sử dụng `--stdin`, các tệp được chỉ định thực sự được thêm vào các mẫu bao gồm. Điều này có nghĩa là hành vi bao gồm và bỏ qua bình thường vẫn áp dụng - các tệp được chỉ định qua stdin vẫn sẽ bị loại trừ nếu chúng khớp với các mẫu bỏ qua.
+
+> [!NOTE]
+> Khi sử dụng `--stdin`, đường dẫn tệp có thể là tương đối hoặc tuyệt đối, và Repomix sẽ tự động xử lý việc phân giải đường dẫn và loại bỏ trùng lặp.
+
 ## Tùy chọn đầu ra
 
 ### Định dạng đầu ra

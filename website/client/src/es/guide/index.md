@@ -2,18 +2,24 @@
 
 <script setup>
 import HomeBadges from '../../../components/HomeBadges.vue'
+import YouTubeVideo from '../../../components/YouTubeVideo.vue'
+import { VIDEO_IDS } from '../../../utils/videos'
 </script>
 
 Repomix es una herramienta que empaqueta todo tu repositorio en un solo archivo amigable para la IA. Está diseñado para ayudarte a alimentar tu código a modelos de lenguaje grandes (LLMs) como ChatGPT, DeepSeek, Perplexity, Gemini, Gemma, Llama, Grok y más.
 
+<YouTubeVideo :videoId="VIDEO_IDS.REPOMIX_DEMO" />
+
 <HomeBadges />
+
+[![Sponsors](https://cdn.jsdelivr.net/gh/yamadashy/sponsor-list/sponsors/sponsors.png)](https://github.com/sponsors/yamadashy)
 
 ## Inicio rápido
 
 Ejecuta este comando en el directorio de tu proyecto:
 
 ```bash
-npx repomix
+npx repomix@latest
 ```
 
 ¡Eso es todo! Encontrarás un archivo `repomix-output.xml` que contiene todo tu repositorio en un formato amigable para la IA.

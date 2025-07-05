@@ -1,18 +1,13 @@
 # ==============================================================================
 # Base image
 # ==============================================================================
-FROM node:23-alpine AS builder
-
-# Install git and other dependencies
-RUN apk add --no-cache \
-    git \
-    ca-certificates
+FROM node:24-alpine AS builder
 
 WORKDIR /app
 COPY package*.json ./
 
-# Install dependencies
-RUN npm i
+# Install all dependencies (including dev dependencies for build)
+RUN npm ci
 
 # Copy source code
 COPY . .
@@ -21,22 +16,32 @@ COPY . .
 RUN npm run build
 
 # ==============================================================================
-# Production image
+# Production dependencies
 # ==============================================================================
-FROM node:23-alpine
+FROM node:24-alpine AS deps
 
-# Install git and other dependencies
-RUN apk add --no-cache \
-    git \
-    ca-certificates \
-    curl
+WORKDIR /app
+COPY package*.json ./
+
+# Install only production dependencies
+RUN npm ci --only=production --ignore-scripts && \
+    npm cache clean --force
+
+# ==============================================================================
+# Runtime image
+# ==============================================================================
+FROM node:24-alpine
+
+# Install git and ca-certificates (required by repomix for remote repository processing)
+RUN apk add --no-cache git ca-certificates
 
 WORKDIR /app
 
-# Copy only necessary files
+# Copy built application
 COPY --from=builder /app/dist ./dist
-COPY --from=builder /app/package*.json ./
-COPY --from=builder /app/node_modules ./node_modules
+
+# Copy production dependencies
+COPY --from=deps /app/node_modules ./node_modules
 
 # Set environment variables
 ENV NODE_ENV=production \
@@ -45,9 +50,5 @@ ENV NODE_ENV=production \
 # Expose port
 EXPOSE 8080
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost:8080/health || exit 1
-
-# Start the server
-CMD ["npm", "start"]
+# Start the server directly
+CMD ["node", "dist/index.js"]

@@ -59,8 +59,10 @@ export const runSecretLint = async (
   });
 
   if (result.messages.length > 0) {
-    logger.trace(`Found ${result.messages.length} issues in ${filePath}`);
-    logger.trace(result.messages.map((message) => `  - ${message.message}`).join('\n'));
+    const issueCount = result.messages.length;
+    const issueText = issueCount === 1 ? 'security issue' : 'security issues';
+    logger.trace(`Found ${issueCount} ${issueText} in ${filePath}`);
+    // Do not log the actual messages to prevent leaking sensitive information
 
     return {
       filePath,

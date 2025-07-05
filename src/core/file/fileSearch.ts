@@ -92,7 +92,11 @@ export const normalizeGlobPattern = (pattern: string): string => {
 };
 
 // Get all file paths considering the config
-export const searchFiles = async (rootDir: string, config: RepomixConfigMerged): Promise<FileSearchResult> => {
+export const searchFiles = async (
+  rootDir: string,
+  config: RepomixConfigMerged,
+  explicitFiles?: string[],
+): Promise<FileSearchResult> => {
   // Check if the path exists and get its type
   let pathStats: Stats;
   try {
@@ -140,9 +144,6 @@ export const searchFiles = async (rootDir: string, config: RepomixConfigMerged):
     );
   }
 
-  const includePatterns =
-    config.include.length > 0 ? config.include.map((pattern) => escapeGlobPattern(pattern)) : ['**/*'];
-
   try {
     const [ignorePatterns, ignoreFilePatterns] = await Promise.all([
       getIgnorePatterns(rootDir, config),
@@ -152,7 +153,6 @@ export const searchFiles = async (rootDir: string, config: RepomixConfigMerged):
     // Normalize ignore patterns to handle trailing slashes consistently
     const normalizedIgnorePatterns = ignorePatterns.map(normalizeGlobPattern);
 
-    logger.trace('Include patterns:', includePatterns);
     logger.trace('Ignore patterns:', normalizedIgnorePatterns);
     logger.trace('Ignore file patterns:', ignoreFilePatterns);
 
@@ -170,6 +170,26 @@ export const searchFiles = async (rootDir: string, config: RepomixConfigMerged):
         adjustedIgnorePatterns.push('.git');
       }
     }
+
+    // Start with configured include patterns
+    let includePatterns = config.include.map((pattern) => escapeGlobPattern(pattern));
+
+    // If explicit files are provided, add them to include patterns
+    if (explicitFiles) {
+      const relativePaths = explicitFiles.map((filePath) => {
+        const relativePath = path.relative(rootDir, filePath);
+        // Escape the path to handle special characters
+        return escapeGlobPattern(relativePath);
+      });
+      includePatterns = [...includePatterns, ...relativePaths];
+    }
+
+    // If no include patterns at all, default to all files
+    if (includePatterns.length === 0) {
+      includePatterns = ['**/*'];
+    }
+
+    logger.trace('Include patterns with explicit files:', includePatterns);
 
     const filePaths = await globby(includePatterns, {
       cwd: rootDir,

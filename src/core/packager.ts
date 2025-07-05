@@ -44,6 +44,7 @@ export const pack = async (
   config: RepomixConfigMerged,
   progressCallback: RepomixProgressCallback = () => {},
   overrideDeps: Partial<typeof defaultDeps> = {},
+  explicitFiles?: string[],
 ): Promise<PackResult> => {
   const deps = {
     ...defaultDeps,
@@ -54,7 +55,7 @@ export const pack = async (
   const filePathsByDir = await Promise.all(
     rootDirs.map(async (rootDir) => ({
       rootDir,
-      filePaths: (await deps.searchFiles(rootDir, config)).filePaths,
+      filePaths: (await deps.searchFiles(rootDir, config, explicitFiles)).filePaths,
     })),
   );
 

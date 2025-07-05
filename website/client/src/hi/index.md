@@ -24,7 +24,14 @@ features:
 
 ---
 
+<script setup>
+import YouTubeVideo from '../../components/YouTubeVideo.vue'
+import { VIDEO_IDS } from '../../utils/videos'
+</script>
+
 <div class="cli-section">
+
+[![Sponsors](https://cdn.jsdelivr.net/gh/yamadashy/sponsor-list/sponsors/sponsors.png)](https://github.com/sponsors/yamadashy)
 
 ## 🏆 ओपन सोर्स अवार्ड्स नामांकन
 
@@ -33,6 +40,12 @@ features:
 यह आप सभी के Repomix का उपयोग करने और समर्थन करने के बिना संभव नहीं होता। धन्यवाद!
 
 अगर Repomix ने आपको AI टूल्स के लिए कोडबेस का विश्लेषण या पैकेजिंग करने में मदद की है, तो हम **Powered by AI** श्रेणी में आपके वोट के लिए आभारी होंगे।
+
+## Repomix क्या है?
+
+Repomix एक शक्तिशाली टूल है जो आपके पूरे कोडबेस को एक AI-फ्रेंडली फाइल में पैकेज करता है। चाहे आप कोड रिव्यू, रिफैक्टरिंग पर काम कर रहे हों या अपने प्रोजेक्ट के लिए AI सहायता की आवश्यकता हो, Repomix आपके पूरे रिपॉजिटरी कॉन्टेक्स्ट को AI टूल्स के साथ साझा करना आसान बनाता है।
+
+<YouTubeVideo :videoId="VIDEO_IDS.REPOMIX_DEMO" />
 
 ## त्वरित शुरुआत
 
@@ -65,7 +78,7 @@ Repomix को कमांड-लाइन टूल के रूप में
 आप Repomix को अपने प्रोजेक्ट डायरेक्टरी में बिना इंस्टॉलेशन के तुरंत आजमा सकते हैं:
 
 ```bash
-npx repomix
+npx repomix@latest
 ```
 
 या बार-बार उपयोग के लिए ग्लोबली इंस्टॉल करें:
@@ -193,6 +206,18 @@ repomix --style plain
   }
 }
 ```
+
+## पावर यूज़र गाइड
+
+Repomix उन्नत उपयोग के मामलों के लिए शक्तिशाली सुविधाएं प्रदान करता है। पावर यूज़र्स के लिए कुछ आवश्यक गाइड यहां हैं:
+
+- **[MCP सर्वर](./guide/mcp-server)** - AI असिस्टेंट के लिए Model Context Protocol एकीकरण
+- **[GitHub Actions](./guide/github-actions)** - CI/CD वर्कफ़्लो में कोडबेस पैकेजिंग को स्वचालित करें
+- **[कोड कंप्रेशन](./guide/code-compress)** - Tree-sitter आधारित इंटेलिजेंट कंप्रेशन (~70% टोकन कमी)
+- **[लाइब्रेरी के रूप में उपयोग](./guide/development/using-repomix-as-a-library)** - अपने Node.js एप्लिकेशन में Repomix को एकीकृत करें
+- **[कस्टम निर्देश](./guide/custom-instructions)** - आउटपुट में कस्टम प्रॉम्प्ट और निर्देश जोड़ें
+- **[सुरक्षा सुविधाएं](./guide/security)** - अंतर्निहित Secretlint एकीकरण और सुरक्षा जांच
+- **[सर्वोत्तम प्रथाएं](./guide/tips/best-practices)** - सिद्ध रणनीतियों के साथ अपने AI वर्कफ़्लो को अनुकूलित करें
 
 ### अधिक उदाहरण
 ::: tip अधिक मदद चाहिए? 💡

@@ -1,10 +1,10 @@
 import os from 'node:os';
-import { Piscina } from 'piscina';
+import { Tinypool } from 'tinypool';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { getProcessConcurrency, getWorkerThreadCount, initPiscina } from '../../src/shared/processConcurrency.js';
+import { getProcessConcurrency, getWorkerThreadCount, initWorker } from '../../src/shared/processConcurrency.js';
 
 vi.mock('node:os');
-vi.mock('piscina');
+vi.mock('tinypool');
 
 describe('processConcurrency', () => {
   describe('getProcessConcurrency', () => {
@@ -60,17 +60,17 @@ describe('processConcurrency', () => {
     });
   });
 
-  describe('initPiscina', () => {
+  describe('initWorker', () => {
     beforeEach(() => {
       vi.mocked(os).availableParallelism = vi.fn().mockReturnValue(4);
-      vi.mocked(Piscina).mockImplementation(() => ({}) as Piscina);
+      vi.mocked(Tinypool).mockImplementation(() => ({}) as Tinypool);
     });
 
-    it('should initialize Piscina with correct configuration', () => {
+    it('should initialize Tinypool with correct configuration', () => {
       const workerPath = '/path/to/worker.js';
-      const piscina = initPiscina(500, workerPath);
+      const tinypool = initWorker(500, workerPath);
 
-      expect(Piscina).toHaveBeenCalledWith({
+      expect(Tinypool).toHaveBeenCalledWith({
         filename: workerPath,
         minThreads: 1,
         maxThreads: 4,
@@ -80,7 +80,7 @@ describe('processConcurrency', () => {
           REPOMIX_LOGLEVEL: '2',
         }),
       });
-      expect(piscina).toBeDefined();
+      expect(tinypool).toBeDefined();
     });
   });
 });

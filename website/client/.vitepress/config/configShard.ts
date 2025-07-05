@@ -141,7 +141,15 @@ export const configShard = defineConfig({
   vite: {
     build: {
       rollupOptions: {
-        plugins: [visualizer()],
+        plugins: [
+          visualizer({
+            filename: 'stats.html',
+            open: false,
+            template: 'treemap',
+            gzipSize: true,
+            brotliSize: true,
+          }),
+        ],
       },
     },
     plugins: [

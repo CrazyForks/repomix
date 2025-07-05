@@ -24,7 +24,14 @@ features:
 
 ---
 
+<script setup>
+import YouTubeVideo from '../../components/YouTubeVideo.vue'
+import { VIDEO_IDS } from '../../utils/videos'
+</script>
+
 <div class="cli-section">
+
+[![Sponsors](https://cdn.jsdelivr.net/gh/yamadashy/sponsor-list/sponsors/sponsors.png)](https://github.com/sponsors/yamadashy)
 
 ## 🏆 Đề cử Giải thưởng Mã nguồn Mở
 
@@ -33,6 +40,12 @@ Chúng tôi rất vinh dự! Repomix đã được đề cử cho hạng mục *
 Điều này không thể thực hiện được nếu không có tất cả các bạn sử dụng và hỗ trợ Repomix. Xin cảm ơn!
 
 Nếu Repomix đã giúp bạn phân tích hoặc đóng gói codebase cho các công cụ AI, chúng tôi sẽ rất biết ơn nếu bạn bỏ phiếu cho chúng tôi trong hạng mục **Powered by AI**.
+
+## Repomix là gì?
+
+Repomix là một công cụ mạnh mẽ giúp đóng gói toàn bộ codebase của bạn thành một file thân thiện với AI. Dù bạn đang làm việc với code review, refactoring hay cần hỗ trợ AI cho dự án của mình, Repomix giúp bạn dễ dàng chia sẻ toàn bộ ngữ cảnh repository với các công cụ AI.
+
+<YouTubeVideo :videoId="VIDEO_IDS.REPOMIX_DEMO" />
 
 ## Bắt đầu nhanh
 
@@ -65,7 +78,7 @@ Repomix có thể được sử dụng như một công cụ dòng lệnh, cung 
 Bạn có thể thử Repomix ngay lập tức trong thư mục dự án của bạn mà không cần cài đặt:
 
 ```bash
-npx repomix
+npx repomix@latest
 ```
 
 Hoặc cài đặt toàn cục để sử dụng nhiều lần:
@@ -193,6 +206,18 @@ Tạo một `repomix.config.json` cho các cài đặt cố định:
   }
 }
 ```
+
+## Hướng Dẫn Người Dùng Chuyên Nghiệp
+
+Repomix cung cấp các tính năng mạnh mẽ cho các trường hợp sử dụng nâng cao. Dưới đây là một số hướng dẫn thiết yếu cho người dùng chuyên nghiệp:
+
+- **[Máy chủ MCP](./guide/mcp-server)** - Tích hợp Model Context Protocol cho trợ lý AI
+- **[GitHub Actions](./guide/github-actions)** - Tự động hóa đóng gói codebase trong quy trình CI/CD
+- **[Nén Mã](./guide/code-compress)** - Nén thông minh dựa trên Tree-sitter (~70% giảm token)
+- **[Sử dụng như Thư viện](./guide/development/using-repomix-as-a-library)** - Tích hợp Repomix vào ứng dụng Node.js của bạn
+- **[Hướng dẫn Tùy chỉnh](./guide/custom-instructions)** - Thêm prompt và hướng dẫn tùy chỉnh vào đầu ra
+- **[Tính năng Bảo mật](./guide/security)** - Tích hợp Secretlint tích hợp sẵn và kiểm tra an toàn
+- **[Thực hành Tốt nhất](./guide/tips/best-practices)** - Tối ưu hóa quy trình AI của bạn với các chiến lược đã được chứng minh
 
 ### Thêm ví dụ
 ::: tip Cần thêm trợ giúp? 💡

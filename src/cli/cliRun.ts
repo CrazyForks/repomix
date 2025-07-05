@@ -42,6 +42,7 @@ const semanticSuggestionMap: Record<string, string[]> = {
   print: ['--stdout'],
   console: ['--stdout'],
   terminal: ['--stdout'],
+  pipe: ['--stdin'],
 };
 
 export const run = async () => {
@@ -80,6 +81,7 @@ export const run = async () => {
       .option('-i, --ignore <patterns>', 'additional ignore patterns (comma-separated)')
       .option('--no-gitignore', 'disable .gitignore file usage')
       .option('--no-default-patterns', 'disable default patterns')
+      .option('--stdin', 'read file list from stdin')
       // Remote Repository Options
       .optionsGroup('Remote Repository Options')
       .option('--remote <url>', 'process a remote Git repository')
@@ -140,6 +142,7 @@ export const run = async () => {
     await program.parseAsync(process.argv);
   } catch (error) {
     handleError(error);
+    process.exit(1);
   }
 };
 
@@ -182,8 +185,11 @@ export const runCli = async (directories: string[], cwd: string, options: CliOpt
     return;
   }
 
-  const version = await getVersion();
-  logger.log(pc.dim(`\n📦 Repomix v${version}\n`));
+  // Skip version header in stdin mode to avoid interfering with piped output from interactive tools like fzf
+  if (!options.stdin) {
+    const version = await getVersion();
+    logger.log(pc.dim(`\n📦 Repomix v${version}\n`));
+  }
 
   if (options.init) {
     await runInitAction(cwd, options.global || false);

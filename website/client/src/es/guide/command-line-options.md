@@ -24,6 +24,7 @@
 ## Opciones de Filtrado
 - `--include <patterns>`: Patrones a incluir (separados por comas)
 - `-i, --ignore <patterns>`: Patrones a ignorar (separados por comas)
+- `--stdin`: Leer rutas de archivos desde stdin en lugar de descubrir archivos automáticamente
 - `--no-gitignore`: Deshabilita el uso del archivo .gitignore
 - `--no-default-patterns`: Deshabilita los patrones predeterminados
 
@@ -76,4 +77,9 @@ repomix --remote https://github.com/user/repo/commit/836abcd7335137228ad77feb286
 
 # Repositorio remoto con formato abreviado
 repomix --remote user/repo
+
+# Lista de archivos usando stdin
+find src -name "*.ts" -type f | repomix --stdin
+git ls-files "*.js" | repomix --stdin
+echo -e "src/index.ts\nsrc/utils.ts" | repomix --stdin
 ```

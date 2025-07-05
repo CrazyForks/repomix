@@ -2,18 +2,24 @@
 
 <script setup>
 import HomeBadges from '../../../components/HomeBadges.vue'
+import YouTubeVideo from '../../../components/YouTubeVideo.vue'
+import { VIDEO_IDS } from '../../../utils/videos'
 </script>
 
 Repomix는 전체 저장소를 AI 친화적인 단일 파일로 패키징하는 도구입니다. ChatGPT, DeepSeek, Perplexity, Gemini, Gemma, Llama, Grok 등의 대규모 언어 모델(LLM)에 코드베이스를 제공하는 데 도움이 되도록 설계되었습니다.
 
+<YouTubeVideo :videoId="VIDEO_IDS.REPOMIX_DEMO" />
+
 <HomeBadges />
+
+[![Sponsors](https://cdn.jsdelivr.net/gh/yamadashy/sponsor-list/sponsors/sponsors.png)](https://github.com/sponsors/yamadashy)
 
 ## 빠른 시작
 
 프로젝트 디렉토리에서 다음 명령을 실행하세요.
 
 ```bash
-npx repomix
+npx repomix@latest
 ```
 
 이게 전부입니다! AI 친화적인 형식으로 전체 저장소를 포함하는 `repomix-output.xml` 파일이 생성됩니다.

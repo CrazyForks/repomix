@@ -114,8 +114,7 @@ describe('cliPrint', () => {
 
       expect(logger.log).toHaveBeenCalledWith('YELLOW:1 suspicious file(s) detected and excluded from the output:');
       expect(logger.log).toHaveBeenCalledWith(`WHITE:1. WHITE:${configRelativePath}`);
-      expect(logger.log).toHaveBeenCalledWith(expect.stringContaining('Contains API key'));
-      expect(logger.log).toHaveBeenCalledWith(expect.stringContaining('Contains password'));
+      expect(logger.log).toHaveBeenCalledWith('DIM:   - 2 security issues detected');
       expect(logger.log).toHaveBeenCalledWith(
         expect.stringContaining('Please review these files for potential sensitive information.'),
       );
@@ -135,7 +134,7 @@ describe('cliPrint', () => {
         'README.md': 400,
       };
 
-      printTopFiles(fileCharCounts, fileTokenCounts, 2);
+      printTopFiles(fileCharCounts, fileTokenCounts, 2, 60);
 
       expect(logger.log).toHaveBeenCalledWith(expect.stringContaining('Top 2 Files'));
       expect(logger.log).toHaveBeenCalledWith(expect.stringContaining('README.md'));
@@ -144,7 +143,7 @@ describe('cliPrint', () => {
     });
 
     test('should handle empty file list', () => {
-      printTopFiles({}, {}, 5);
+      printTopFiles({}, {}, 5, 0);
 
       expect(logger.log).toHaveBeenCalledWith(expect.stringContaining('Top 5 Files'));
     });

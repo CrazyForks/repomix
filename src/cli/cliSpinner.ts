@@ -1,10 +1,12 @@
-import cliSpinners from 'cli-spinners';
 import logUpdate from 'log-update';
 import pc from 'picocolors';
 import type { CliOptions } from './types.js';
 
+// Replicate cli-spinners dots animation
+const dotsFrames = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
+const dotsInterval = 80;
+
 export class Spinner {
-  private spinner = cliSpinners.dots;
   private message: string;
   private currentFrame = 0;
   private interval: ReturnType<typeof setInterval> | null = null;
@@ -21,13 +23,12 @@ export class Spinner {
       return;
     }
 
-    const frames = this.spinner.frames;
-    const framesLength = frames.length;
+    const framesLength = dotsFrames.length;
     this.interval = setInterval(() => {
       this.currentFrame++;
-      const frame = frames[this.currentFrame % framesLength];
+      const frame = dotsFrames[this.currentFrame % framesLength];
       logUpdate(`${pc.cyan(frame)} ${this.message}`);
-    }, this.spinner.interval);
+    }, dotsInterval);
   }
 
   update(message: string): void {

@@ -49,6 +49,8 @@
 It is perfect for when you need to feed your codebase to Large Language Models (LLMs) or other AI tools like Claude,
 ChatGPT, DeepSeek, Perplexity, Gemini, Gemma, Llama, Grok, and more.
 
+[![Sponsors](https://cdn.jsdelivr.net/gh/yamadashy/sponsor-list/sponsors/sponsors.png)](https://github.com/sponsors/yamadashy)
+
 ## 🏆 Open Source Awards Nomination
 
 We're honored! Repomix has been nominated for the **Powered by AI** category at the [JSNation Open Source Awards 2025](https://osawards.com/javascript/).
@@ -81,7 +83,7 @@ If Repomix has helped you analyze or pack codebases for AI tools, we'd be gratef
 You can try Repomix instantly in your project directory without installation:
 
 ```bash
-npx repomix
+npx repomix@latest
 ```
 
 Or install globally for repeated use:
@@ -213,6 +215,50 @@ repomix --remote https://github.com/yamadashy/repomix/tree/main
 repomix --remote https://github.com/yamadashy/repomix/commit/836abcd7335137228ad77feb28655d85712680f1
 
 ```
+
+To pack files from a file list (pipe via stdin):
+
+```bash
+# Using find command
+find src -name "*.ts" -type f | repomix --stdin
+
+# Using git to get tracked files
+git ls-files "*.ts" | repomix --stdin
+
+# Using grep to find files containing specific content
+grep -l "TODO" **/*.ts | repomix --stdin
+
+# Using ripgrep to find files with specific content
+rg -l "TODO|FIXME" --type ts | repomix --stdin
+
+# Using ripgrep (rg) to find files
+rg --files --type ts | repomix --stdin
+
+# Using sharkdp/fd to find files
+fd -e ts | repomix --stdin
+
+# Using fzf to select from all files
+fzf -m | repomix --stdin
+
+# Interactive file selection with fzf
+find . -name "*.ts" -type f | fzf -m | repomix --stdin
+
+# Using ls with glob patterns
+ls src/**/*.ts | repomix --stdin
+
+# From a file containing file paths
+cat file-list.txt | repomix --stdin
+
+# Direct input with echo
+echo -e "src/index.ts\nsrc/utils.ts" | repomix --stdin
+```
+
+The `--stdin` option allows you to pipe a list of file paths to Repomix, giving you ultimate flexibility in selecting which files to pack.
+
+When using `--stdin`, the specified files are effectively added to the include patterns. This means that the normal include and ignore behavior still applies - files specified via stdin will still be excluded if they match ignore patterns.
+
+> [!NOTE]
+> When using `--stdin`, file paths can be relative or absolute, and Repomix will automatically handle path resolution and deduplication.
 
 To compress the output:
 
@@ -482,6 +528,7 @@ Instruction
 #### Filter Options
 - `--include <patterns>`: List of include patterns (comma-separated)
 - `-i, --ignore <patterns>`: Additional ignore patterns (comma-separated)
+- `--stdin`: Read file paths from stdin instead of discovering files automatically
 - `--no-gitignore`: Disable .gitignore file usage
 - `--no-default-patterns`: Disable default patterns
 
@@ -1252,6 +1299,7 @@ We welcome contributions from the community! To get started, please refer to our
 ### Repomix Website ([repomix.com](https://repomix.com/))
 
 - **Data Collection**: The Repomix website uses **Google Analytics** to collect usage data, such as page views and user interactions. This helps us understand how the website is used and improve the user experience.
+- **File Processing**: When uploading ZIP files or folders, your files are temporarily stored on our servers for processing. All uploaded files and processed data are automatically deleted immediately after processing is complete.
 
 ### Repomix Browser Extension
 

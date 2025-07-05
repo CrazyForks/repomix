@@ -33,7 +33,9 @@ export const validateFileSafety = async (
     if (suspiciousGitDiffResults.length > 0) {
       logger.warn('Security issues found in Git diffs, but they will still be included in the output');
       for (const result of suspiciousGitDiffResults) {
-        logger.warn(`  - ${result.filePath}: ${result.messages.join(', ')}`);
+        const issueCount = result.messages.length;
+        const issueText = issueCount === 1 ? 'issue' : 'issues';
+        logger.warn(`  - ${result.filePath}: ${issueCount} ${issueText} detected`);
       }
     }
   }

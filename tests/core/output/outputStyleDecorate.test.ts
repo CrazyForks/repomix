@@ -86,10 +86,26 @@ describe('generateHeader', () => {
 
 describe('generateSummaryPurpose', () => {
   it('should generate consistent purpose text', () => {
-    const purpose = generateSummaryPurpose();
+    const purpose = generateSummaryPurpose(createMockConfig());
     expect(purpose).toContain('packed representation');
     expect(purpose).toContain('AI systems');
     expect(purpose).toContain('code review');
+  });
+
+  it('should indicate entire repository when using default settings', () => {
+    const config = createMockConfig();
+    const purpose = generateSummaryPurpose(config);
+    expect(purpose).toContain("entire repository's contents");
+    expect(purpose).not.toContain('subset');
+  });
+
+  it('should indicate subset when using include patterns', () => {
+    const config = createMockConfig({
+      include: ['src/**/*.ts'],
+    });
+    const purpose = generateSummaryPurpose(config);
+    expect(purpose).toContain("subset of the repository's contents that is considered the most important context");
+    expect(purpose).not.toContain('entire repository');
   });
 });
 

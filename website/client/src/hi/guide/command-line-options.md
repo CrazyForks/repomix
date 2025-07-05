@@ -74,6 +74,14 @@ repomix --ignore <patterns>
 repomix --ignore "**/*.log,tmp/"
 ```
 
+### Stdin से फ़ाइल पथ
+
+```bash
+repomix --stdin
+```
+
+फ़ाइलों को स्वचालित रूप से खोजने के बजाय stdin से फ़ाइल पथ पढ़ता है।
+
 ## रिमोट रिपॉजिटरी प्रोसेसिंग
 
 ### रिमोट रिपॉजिटरी
@@ -200,6 +208,14 @@ repomix --remove-comments --compress
 ```
 
 टिप्पणियां हटाकर और कोड को संक्षिप्त करके टोकन उपयोग को कम करता है।
+
+### Stdin का उपयोग करके फ़ाइल सूची
+
+```bash
+find src -name "*.ts" -type f | repomix --stdin
+git ls-files "*.js" | repomix --stdin
+echo -e "src/index.ts\nsrc/utils.ts" | repomix --stdin
+```
 
 ## अगला क्या है?
 

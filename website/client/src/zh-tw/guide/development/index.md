@@ -51,7 +51,7 @@ npm run lint
 
 ### 前提條件
 
-- Node.js ≥ 18.0.0
+- Node.js ≥ 20.0.0
 - Git
 - npm
 - Docker（可選，用於運行網站或容器化開發）

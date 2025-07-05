@@ -1,6 +1,6 @@
 import pc from 'picocolors';
 import { logger } from '../../shared/logger.js';
-import { initPiscina } from '../../shared/processConcurrency.js';
+import { initWorker } from '../../shared/processConcurrency.js';
 import type { RepomixProgressCallback } from '../../shared/types.js';
 import type { RawFile } from '../file/fileTypes.js';
 import type { GitDiffResult } from '../git/gitDiffHandle.js';
@@ -13,7 +13,7 @@ export interface SuspiciousFileResult {
 }
 
 const initTaskRunner = (numOfTasks: number) => {
-  const pool = initPiscina(numOfTasks, new URL('./workers/securityCheckWorker.js', import.meta.url).href);
+  const pool = initWorker(numOfTasks, new URL('./workers/securityCheckWorker.js', import.meta.url).href);
   return (task: SecurityCheckTask) => pool.run(task);
 };
 
