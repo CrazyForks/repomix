@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1775315301498,
+  "lastUpdate": 1775455787440,
   "repoUrl": "https://github.com/CrazyForks/repomix",
   "entries": {
     "Repomix Performance": [
@@ -45,6 +45,51 @@ window.BENCHMARK_DATA = {
             "range": "±15",
             "unit": "ms",
             "extra": "Median of 20 runs\nQ1: 2644ms, Q3: 2659ms\nAll times: 2622, 2628, 2628, 2629, 2641, 2644, 2646, 2648, 2649, 2650, 2651, 2651, 2652, 2656, 2657, 2659, 2672, 2696, 2702, 2731ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "koukun0120@gmail.com",
+            "name": "Kazuki Yamada",
+            "username": "yamadashy"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "6d9c76ed933deb60fe801a69af58d59e11989aff",
+          "message": "Merge pull request #1389 from yamadashy/renovate/website-non-major-dependencies\n\nfix(deps): update website non-major dependencies",
+          "timestamp": "2026-04-04T19:38:14+09:00",
+          "tree_id": "2cb3061d9f70d889b42ce201ff7746c39430a0f0",
+          "url": "https://github.com/CrazyForks/repomix/commit/6d9c76ed933deb60fe801a69af58d59e11989aff"
+        },
+        "date": 1775455787109,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Repomix Pack (macOS)",
+            "value": 1209,
+            "range": "±73",
+            "unit": "ms",
+            "extra": "Median of 30 runs\nQ1: 1186ms, Q3: 1259ms\nAll times: 1132, 1140, 1152, 1177, 1177, 1179, 1181, 1186, 1187, 1188, 1191, 1193, 1196, 1202, 1207, 1209, 1226, 1226, 1232, 1232, 1237, 1248, 1259, 1266, 1272, 1274, 1280, 1294, 1370, 1419ms"
+          },
+          {
+            "name": "Repomix Pack (Linux)",
+            "value": 1956,
+            "range": "±35",
+            "unit": "ms",
+            "extra": "Median of 20 runs\nQ1: 1939ms, Q3: 1974ms\nAll times: 1921, 1927, 1933, 1939, 1939, 1939, 1941, 1950, 1954, 1954, 1956, 1959, 1960, 1965, 1971, 1974, 1977, 1986, 1987, 1991ms"
+          },
+          {
+            "name": "Repomix Pack (Windows)",
+            "value": 2392,
+            "range": "±25",
+            "unit": "ms",
+            "extra": "Median of 20 runs\nQ1: 2383ms, Q3: 2408ms\nAll times: 2347, 2365, 2369, 2377, 2380, 2383, 2385, 2386, 2387, 2390, 2392, 2395, 2396, 2399, 2408, 2408, 2413, 2421, 2421, 2422ms"
           }
         ]
       }
