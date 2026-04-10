@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1775455787440,
+  "lastUpdate": 1775792946104,
   "repoUrl": "https://github.com/CrazyForks/repomix",
   "entries": {
     "Repomix Performance": [
@@ -90,6 +90,44 @@ window.BENCHMARK_DATA = {
             "range": "±25",
             "unit": "ms",
             "extra": "Median of 20 runs\nQ1: 2383ms, Q3: 2408ms\nAll times: 2347, 2365, 2369, 2377, 2380, 2383, 2385, 2386, 2387, 2390, 2392, 2395, 2396, 2399, 2408, 2408, 2413, 2421, 2421, 2422ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "koukun0120@gmail.com",
+            "name": "Kazuki Yamada",
+            "username": "yamadashy"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "6a645d86637bab9cb670a7a297944039384000f5",
+          "message": "Merge pull request #1425 from yamadashy/chore/improve-claude-md\n\nchore(agents): Improve CLAUDE.md clarity and conciseness",
+          "timestamp": "2026-04-06T23:24:46+09:00",
+          "tree_id": "bc3d4c5050625f199762755f04bc43ac27f3f858",
+          "url": "https://github.com/CrazyForks/repomix/commit/6a645d86637bab9cb670a7a297944039384000f5"
+        },
+        "date": 1775792945789,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Repomix Pack (Linux)",
+            "value": 1866,
+            "range": "±57",
+            "unit": "ms",
+            "extra": "Median of 20 runs\nQ1: 1844ms, Q3: 1901ms\nAll times: 1831, 1832, 1833, 1838, 1840, 1844, 1846, 1851, 1862, 1864, 1866, 1866, 1869, 1873, 1875, 1901, 1906, 1916, 1933, 1986ms"
+          },
+          {
+            "name": "Repomix Pack (Windows)",
+            "value": 2321,
+            "range": "±56",
+            "unit": "ms",
+            "extra": "Median of 20 runs\nQ1: 2289ms, Q3: 2345ms\nAll times: 2252, 2271, 2275, 2278, 2281, 2289, 2292, 2296, 2297, 2306, 2321, 2325, 2331, 2331, 2335, 2345, 2358, 2359, 2441, 2491ms"
           }
         ]
       }
