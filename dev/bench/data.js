@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1776097992478,
+  "lastUpdate": 1776602809106,
   "repoUrl": "https://github.com/CrazyForks/repomix",
   "entries": {
     "Repomix Performance": [
@@ -218,6 +218,44 @@ window.BENCHMARK_DATA = {
             "range": "±24",
             "unit": "ms",
             "extra": "Median of 20 runs\nQ1: 2265ms, Q3: 2289ms\nAll times: 2237, 2245, 2257, 2259, 2261, 2265, 2265, 2268, 2273, 2275, 2276, 2278, 2279, 2280, 2283, 2289, 2295, 2299, 2309, 2311ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "koukun0120@gmail.com",
+            "name": "Kazuki Yamada",
+            "username": "yamadashy"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "c55528df3718b5adb0952da0a72efcb7772cc482",
+          "message": "Merge pull request #1469 from yamadashy/perf/reduce-module-overhead\n\nperf(core): Remove redundant minimatch and parallelize wrapper tokenization",
+          "timestamp": "2026-04-15T22:24:43+09:00",
+          "tree_id": "435703feb2ba6845db791f74a54749dcaf047bb4",
+          "url": "https://github.com/CrazyForks/repomix/commit/c55528df3718b5adb0952da0a72efcb7772cc482"
+        },
+        "date": 1776602808176,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Repomix Pack (macOS)",
+            "value": 1122,
+            "range": "±142",
+            "unit": "ms",
+            "extra": "Median of 30 runs\nQ1: 1043ms, Q3: 1185ms\nAll times: 952, 984, 997, 1003, 1005, 1009, 1021, 1043, 1051, 1081, 1090, 1098, 1101, 1107, 1118, 1122, 1124, 1137, 1137, 1140, 1148, 1156, 1185, 1234, 1255, 1268, 1298, 1304, 1348, 1352ms"
+          },
+          {
+            "name": "Repomix Pack (Windows)",
+            "value": 1904,
+            "range": "±427",
+            "unit": "ms",
+            "extra": "Median of 19 runs\nQ1: 1876ms, Q3: 2303ms\nAll times: 1855, 1861, 1862, 1870, 1876, 1879, 1881, 1883, 1897, 1904, 1912, 1985, 2028, 2049, 2303, 2330, 2339, 2378, 2378ms"
           }
         ]
       }
