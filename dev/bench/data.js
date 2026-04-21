@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1776602809106,
+  "lastUpdate": 1776771430345,
   "repoUrl": "https://github.com/CrazyForks/repomix",
   "entries": {
     "Repomix Performance": [
@@ -256,6 +256,51 @@ window.BENCHMARK_DATA = {
             "range": "±427",
             "unit": "ms",
             "extra": "Median of 19 runs\nQ1: 1876ms, Q3: 2303ms\nAll times: 1855, 1861, 1862, 1870, 1876, 1879, 1881, 1883, 1897, 1904, 1912, 1985, 2028, 2049, 2303, 2330, 2339, 2378, 2378ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "koukun0120@gmail.com",
+            "name": "Kazuki Yamada",
+            "username": "yamadashy"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "03964d15a78ed497bbac2c221bc4219043563128",
+          "message": "Merge pull request #1498 from yamadashy/fix/dashboard-legend-labels\n\nfix(monitoring): Correct dashboard legend template variable syntax",
+          "timestamp": "2026-04-19T16:43:12+09:00",
+          "tree_id": "e11ffb6da91fcd4e46952d3a990ece7c37cebcf1",
+          "url": "https://github.com/CrazyForks/repomix/commit/03964d15a78ed497bbac2c221bc4219043563128"
+        },
+        "date": 1776771430021,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Repomix Pack (macOS)",
+            "value": 902,
+            "range": "±61",
+            "unit": "ms",
+            "extra": "Median of 30 runs\nQ1: 876ms, Q3: 937ms\nAll times: 857, 857, 868, 870, 870, 874, 875, 876, 878, 884, 886, 890, 894, 898, 900, 902, 913, 927, 928, 934, 935, 937, 937, 952, 967, 1032, 1036, 1039, 1053, 1094ms"
+          },
+          {
+            "name": "Repomix Pack (Linux)",
+            "value": 1515,
+            "range": "±60",
+            "unit": "ms",
+            "extra": "Median of 20 runs\nQ1: 1499ms, Q3: 1559ms\nAll times: 1465, 1486, 1488, 1488, 1492, 1499, 1503, 1506, 1509, 1513, 1515, 1531, 1534, 1544, 1555, 1559, 1584, 1629, 1780, 1829ms"
+          },
+          {
+            "name": "Repomix Pack (Windows)",
+            "value": 1909,
+            "range": "±62",
+            "unit": "ms",
+            "extra": "Median of 20 runs\nQ1: 1884ms, Q3: 1946ms\nAll times: 1806, 1834, 1851, 1871, 1877, 1884, 1891, 1892, 1899, 1908, 1909, 1912, 1915, 1928, 1938, 1946, 1990, 1995, 2033, 2308ms"
           }
         ]
       }
