@@ -59,56 +59,78 @@ export function useTurnstile() {
   // somehow shipped the test sitekey would still 403 every pack.
   const siteKey = import.meta.env.VITE_TURNSTILE_SITE_KEY ?? FALLBACK_TEST_SITE_KEY;
 
+  // Single-flight cache for the in-flight ensureWidget promise. Without it,
+  // pre-warm and getToken() can both race past the `widgetId.value` null
+  // check after `await loadTurnstileScript()` resolves, calling
+  // `turnstile.render()` twice — the first widget id gets overwritten and
+  // leaks (onBeforeUnmount can only remove the surviving id).
+  let ensureWidgetPromise: Promise<TurnstileGlobal> | null = null;
+
   async function ensureWidget(el: HTMLElement): Promise<TurnstileGlobal> {
-    const turnstile = await loadTurnstileScript();
-    // The component may have unmounted (or the user may have switched away
-    // from the form) while the script was loading. Detached DOM elements
-    // accept render() but the corresponding remove() in onBeforeUnmount has
-    // already run, so the widget would leak. Bail out instead.
-    if (containerEl.value !== el) {
-      throw new Error('Turnstile container detached during script load');
+    if (ensureWidgetPromise) return ensureWidgetPromise;
+    ensureWidgetPromise = (async () => {
+      const turnstile = await loadTurnstileScript();
+      // The component may have unmounted (or the user may have switched away
+      // from the form) while the script was loading. Detached DOM elements
+      // accept render() but the corresponding remove() in onBeforeUnmount has
+      // already run, so the widget would leak. Bail out instead.
+      if (containerEl.value !== el) {
+        throw new Error('Turnstile container detached during script load');
+      }
+      if (!widgetId.value) {
+        widgetId.value = turnstile.render(el, {
+          sitekey: siteKey,
+          size: 'invisible',
+          action: 'pack',
+          // Defer the actual challenge until getToken() calls execute(). This
+          // is what makes the pre-warm in setContainer() free of side-effects
+          // (no token waste, no inflated "unresolved challenge" counter for
+          // visitors who never click pack).
+          execution: 'execute',
+          callback: (token: string) => {
+            if (pendingResolve) {
+              pendingResolve(token);
+              pendingResolve = null;
+              pendingReject = null;
+            }
+          },
+          'error-callback': (errorCode: string) => {
+            const message = `Turnstile error: ${errorCode}`;
+            error.value = message;
+            if (pendingReject) {
+              pendingReject(new Error(message));
+              pendingResolve = null;
+              pendingReject = null;
+            }
+          },
+          'expired-callback': () => {
+            // Token expired before being used. The widget will issue a fresh
+            // one on the next execute() call.
+            if (widgetId.value) turnstile.reset(widgetId.value);
+          },
+          'timeout-callback': () => {
+            if (pendingReject) {
+              pendingReject(new Error('Turnstile challenge timed out'));
+              pendingResolve = null;
+              pendingReject = null;
+            }
+          },
+        });
+      }
+      return turnstile;
+    })();
+    try {
+      return await ensureWidgetPromise;
+    } catch (err) {
+      // Drop the cached promise on rejection so a retry (e.g. after a CDN
+      // blip cleared by useTurnstileScript's resetForRetry) can re-enter the
+      // render path. On success we keep the resolved promise cached: the
+      // widgetId guard above turns subsequent calls into a no-op anyway, but
+      // returning the same promise avoids a duplicate `loadTurnstileScript()`
+      // round-trip in the cached-success case.
+      ensureWidgetPromise = null;
+      throw err;
     }
-    if (!widgetId.value) {
-      widgetId.value = turnstile.render(el, {
-        sitekey: siteKey,
-        size: 'invisible',
-        action: 'pack',
-        // Defer the actual challenge until getToken() calls execute(). This
-        // is what makes the pre-warm in setContainer() free of side-effects
-        // (no token waste, no inflated "unresolved challenge" counter for
-        // visitors who never click pack).
-        execution: 'execute',
-        callback: (token: string) => {
-          if (pendingResolve) {
-            pendingResolve(token);
-            pendingResolve = null;
-            pendingReject = null;
-          }
-        },
-        'error-callback': (errorCode: string) => {
-          const message = `Turnstile error: ${errorCode}`;
-          error.value = message;
-          if (pendingReject) {
-            pendingReject(new Error(message));
-            pendingResolve = null;
-            pendingReject = null;
-          }
-        },
-        'expired-callback': () => {
-          // Token expired before being used. The widget will issue a fresh
-          // one on the next execute() call.
-          if (widgetId.value) turnstile.reset(widgetId.value);
-        },
-        'timeout-callback': () => {
-          if (pendingReject) {
-            pendingReject(new Error('Turnstile challenge timed out'));
-            pendingResolve = null;
-            pendingReject = null;
-          }
-        },
-      });
-    }
-    return turnstile;
   }
 
   // Ask the (invisible) widget for a fresh verification token. Each call
