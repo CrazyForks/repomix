@@ -206,6 +206,23 @@ export function useTurnstile() {
 
   function setContainer(el: HTMLElement | null) {
     containerEl.value = el;
+    // Pre-warm: load the Turnstile script and render the (invisible) widget
+    // as soon as the container is registered, instead of waiting for the
+    // first `getToken()` call. This trades a small amount of page-idle work
+    // for a noticeably shorter "Processing repository..." gap when the user
+    // clicks pack — `execute()` on a ready widget typically returns in
+    // 100-200ms, vs 500-1000ms when script load + widget init happen
+    // serially with the click.
+    //
+    // Errors are intentionally swallowed: a failed pre-warm doesn't block
+    // page rendering, and the same `loadTurnstileScript` / `ensureWidget`
+    // path will retry (with full error propagation) when `getToken()` is
+    // eventually called.
+    if (el) {
+      ensureWidget(el).catch(() => {
+        // pre-warm failures surface on the actual submit path
+      });
+    }
   }
 
   onBeforeUnmount(() => {
