@@ -73,6 +73,11 @@ export function useTurnstile() {
         sitekey: siteKey,
         size: 'invisible',
         action: 'pack',
+        // Defer the actual challenge until getToken() calls execute(). This
+        // is what makes the pre-warm in setContainer() free of side-effects
+        // (no token waste, no inflated "unresolved challenge" counter for
+        // visitors who never click pack).
+        execution: 'execute',
         callback: (token: string) => {
           if (pendingResolve) {
             pendingResolve(token);
