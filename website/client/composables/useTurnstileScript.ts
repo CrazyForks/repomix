@@ -24,6 +24,15 @@ export interface TurnstileRenderOptions {
   // token minted for /api/pack can't be replayed at a future endpoint that
   // expects a different action.
   action?: string;
+  // 'render' (Cloudflare default) auto-runs the challenge on render(),
+  // 'execute' waits for an explicit turnstile.execute() call. Use 'execute'
+  // so the pre-warm path (render at form mount) only loads the script and
+  // widget shell — no challenge runs and no token is minted until the user
+  // clicks pack. Without this, render() fires a wasted challenge per page
+  // view, which (a) inflates the Turnstile dashboard's "unresolved
+  // challenges" counter for any non-human visitor, and (b) burns one token
+  // before the user actually submits.
+  execution?: 'render' | 'execute';
   callback?: (token: string) => void;
   'error-callback'?: (errorCode: string) => void;
   'expired-callback'?: () => void;
