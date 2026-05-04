@@ -231,6 +231,12 @@ export function useTurnstile() {
   }
 
   onBeforeUnmount(() => {
+    // Drop the container ref first so any in-flight pre-warm `ensureWidget()`
+    // call that resolves AFTER unmount sees `containerEl.value !== el` and
+    // skips render(). Without this, a slow script load could complete after
+    // the form was unmounted and bind a new widget to a detached DOM node
+    // with no remove() left to clean it up.
+    containerEl.value = null;
     // Reject any in-flight getToken() promise so the awaiting caller doesn't
     // hang forever after the form unmounts (e.g. user navigates away mid-
     // challenge).
