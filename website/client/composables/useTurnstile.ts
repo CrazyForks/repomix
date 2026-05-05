@@ -139,7 +139,6 @@ export function useTurnstile() {
   // Run the widget challenge and return a fresh token. Internal primitive
   // wrapped by the token cache's preMintToken / takeToken.
   async function mintToken(): Promise<string> {
-    error.value = null;
     if (!containerEl.value) {
       throw new Error('Turnstile container element not registered');
     }
@@ -234,6 +233,5 @@ export function useTurnstile() {
     setContainer,
     preMintToken: cache.preMintToken,
     takeToken: cache.takeToken,
-    error,
   };
 }
