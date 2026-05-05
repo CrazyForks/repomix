@@ -34,15 +34,22 @@ const BINARY_PROBE_BYTES = 512;
 const SUSPICIOUS_BYTE_RATIO_THRESHOLD_PERCENT = 10;
 
 /**
- * Check whether the buffer starts with a UTF-16/UTF-32 BOM. These encodings
- * place NULL bytes throughout text content (UTF-16 LE encodes ASCII `A` as
- * `0x41 0x00`; UTF-32 BE BOM is `0x00 0x00 0xFE 0xFF`), so the cheap
- * NULL-byte binary probe would otherwise misclassify them. Files matched
- * here fall through to the slow path's jschardet+iconv encoding detection,
- * matching the pre-change behavior. Byte patterns mirror `isbinaryfile`'s
- * own BOM-exemption checks in `isBinaryCheck`.
+ * Check whether the buffer starts with a known text-encoding BOM. UTF-16 and
+ * UTF-32 sprinkle NULL bytes through text content (UTF-16 LE encodes ASCII `A`
+ * as `0x41 0x00`; UTF-32 BE BOM is `0x00 0x00 0xFE 0xFF`), so the cheap
+ * NULL-byte binary probe would otherwise misclassify them. UTF-8 BOM is
+ * included for parity with `isbinaryfile`'s `isBinaryCheck`, which short-
+ * circuits to "not binary" on any of these BOMs before the NULL/suspicious-
+ * byte rules — buffers like `EF BB BF 00 41` (UTF-8 BOM + NULL + 'A') were
+ * therefore classified as text in the prior behavior and must continue to
+ * fall through to the UTF-8 fast path / slow path here. Byte patterns mirror
+ * `isbinaryfile`'s own BOM-exemption checks.
  */
-const hasNonUtf8TextBom = (buffer: Buffer): boolean => {
+const hasTextBom = (buffer: Buffer): boolean => {
+  // UTF-8 BOM
+  if (buffer.length >= 3 && buffer[0] === 0xef && buffer[1] === 0xbb && buffer[2] === 0xbf) {
+    return true;
+  }
   // UTF-32 BE BOM
   if (buffer.length >= 4 && buffer[0] === 0x00 && buffer[1] === 0x00 && buffer[2] === 0xfe && buffer[3] === 0xff) {
     return true;
@@ -110,11 +117,12 @@ export const readRawFile = async (filePath: string, maxFileSize: number): Promis
     // The protobuf detector (which only runs when suspicious bytes > 1) is the
     // pathological case and is intentionally not mirrored.
     //
-    // UTF-16/UTF-32 text files contain NULLs throughout their content but are
-    // not binary; `isbinaryfile` exempts them via BOM and then decodes via
-    // jschardet+iconv. Skip the probe for them so they reach the slow path
-    // unchanged.
-    if (!hasNonUtf8TextBom(buffer)) {
+    // BOM-marked text files (UTF-8 / UTF-16 / UTF-32 / GB18030) are exempted:
+    // UTF-16/UTF-32 sprinkle NULLs through content; UTF-8 BOM is exempted by
+    // `isbinaryfile` itself before any of the binary heuristics run, so a
+    // buffer like `EF BB BF 00 41` was previously classified as text and
+    // must continue to fall through the fast/slow paths here.
+    if (!hasTextBom(buffer)) {
       // PDF magic (5 bytes: `%PDF-`)
       if (
         buffer.length >= 5 &&

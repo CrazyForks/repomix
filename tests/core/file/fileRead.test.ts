@@ -204,6 +204,24 @@ def hello():
     expect(result.content).toBe('\x7f'.repeat(64));
   });
 
+  test('should not classify UTF-8 BOM file as binary even when followed by NULL', async () => {
+    // Regression: `isbinaryfile@5.0.2`'s `isBinaryCheck` short-circuits to
+    // "not binary" the moment it sees a UTF-8 BOM (`EF BB BF`), before any of
+    // the NULL / suspicious-byte / PDF / protobuf rules run. A file like
+    // `EF BB BF 00 41` was therefore packed as text in the prior behavior.
+    // The cheap pre-screen must mirror that exemption so this case keeps
+    // reaching the UTF-8 fast path instead of being newly skipped.
+    const filePath = path.join(testDir, 'utf8-bom-with-null.txt');
+    const utf8Bom = Buffer.from([0xef, 0xbb, 0xbf]);
+    const body = Buffer.from([0x00, 0x41]); // U+0000 then 'A'
+    await fs.writeFile(filePath, Buffer.concat([utf8Bom, body]));
+
+    const result = await readRawFile(filePath, 1024);
+
+    expect(result.skippedReason).toBeUndefined();
+    expect(result.content).toBe('\0A');
+  });
+
   test('should decode UTF-16 LE BOM file despite embedded NULL bytes', async () => {
     // Regression: the cheap NULL-byte binary probe ahead of the UTF-8 try
     // would misclassify UTF-16/UTF-32 text files (whose ASCII characters
