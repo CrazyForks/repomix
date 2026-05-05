@@ -164,7 +164,7 @@ def hello():
     // Regression: the cheap pre-screen before the UTF-8 fast path must mirror
     // `isbinaryfile`'s `%PDF-` magic rule. A no-extension or `.txt` file whose
     // header is valid UTF-8 starting with `%PDF-` (e.g. an extracted PDF body
-    // mis-classified by extension) was previously skipped as binary-content;
+    // misclassified by extension) was previously skipped as binary-content;
     // dropping the rule would silently pack PDF bytes as text.
     const filePath = path.join(testDir, 'looks-like-pdf.txt');
     await fs.writeFile(filePath, '%PDF-1.4\n1 0 obj\n<<>>\nendobj\n', 'utf-8');
