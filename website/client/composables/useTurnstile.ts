@@ -1,13 +1,17 @@
 import { onBeforeUnmount, ref } from 'vue';
 import { loadTurnstileScript, type TurnstileGlobal } from './useTurnstileScript';
+import { createTurnstileTokenCache } from './useTurnstileTokenCache';
 
 // Cloudflare Turnstile integration. Used by usePackRequest to obtain a 1-shot
 // verification token that the server-side turnstileMiddleware verifies before
 // running /api/pack.
 //
-// The script-loading mechanics (script tag injection, READY_CALLBACK,
-// retry-on-failure) live in `useTurnstileScript.ts` so this file stays
-// focused on widget lifecycle / token requests / abort propagation.
+// Layering:
+// - `useTurnstileScript.ts` — script tag injection / READY_CALLBACK / retry.
+// - `useTurnstileTokenCache.ts` — token cache, single-flight mint,
+//   atomic one-shot consumption.
+// - this file — widget lifecycle (render/execute/reset), abort propagation
+//   into the underlying iframe, supersede / generation-counter logic.
 //
 // Site key resolution:
 // - Build-time env var `VITE_TURNSTILE_SITE_KEY` overrides the default
@@ -24,18 +28,6 @@ const FALLBACK_TEST_SITE_KEY = '1x00000000000000000000AA';
 // widget that hangs (CDN stall, iframe never resolves) would otherwise leave
 // the caller's promise pending forever and freeze the loading spinner.
 const MINT_TIMEOUT_MS = 15_000;
-
-// Cached tokens are treated as expired before Cloudflare's hard 300s ceiling,
-// to leave a safety margin for clock skew and network round-trips. A user
-// who starts a pack just inside the window won't get a `timeout-or-duplicate`
-// from siteverify because they were 1 second from the cliff.
-const TOKEN_TTL_MS = 240_000;
-
-interface CachedToken {
-  token: string;
-  mintedAt: number;
-  consumed: boolean;
-}
 
 export function useTurnstile() {
   const widgetId = ref<string | null>(null);
@@ -56,12 +48,6 @@ export function useTurnstile() {
   //  - back-to-back mints reusing handlers before the previous timeout has
   //    fired.
   let currentGen = 0;
-
-  // Pre-mint cache. `mintPromise` is the in-flight challenge; `cachedToken`
-  // is the resolved token waiting to be consumed. Both clear on consumption,
-  // expiry, error, and component unmount.
-  let mintPromise: Promise<string> | null = null;
-  let cachedToken: CachedToken | null = null;
 
   // Site key resolution. The production-only safety net lives in
   // `.vitepress/config.ts` (it throws at build time when the Cloudflare Pages
@@ -84,6 +70,9 @@ export function useTurnstile() {
   // after `await loadTurnstileScript()` resolves and call `turnstile.render()`
   // twice — the first widget id would be overwritten and leak.
   let ensureWidgetPromise: Promise<TurnstileGlobal> | null = null;
+
+  // Forward declaration — set after cache is created below.
+  let resetCache: () => void = () => {};
 
   async function ensureWidget(el: HTMLElement): Promise<TurnstileGlobal> {
     if (ensureWidgetPromise) return ensureWidgetPromise;
@@ -122,7 +111,7 @@ export function useTurnstile() {
             // Token expired before being used. Drop the cache so the next
             // takeToken() refreshes; the widget will issue a fresh token on
             // the next execute() call.
-            cachedToken = null;
+            resetCache();
             if (widgetId.value) turnstile.reset(widgetId.value);
           },
           'timeout-callback': () => {
@@ -151,34 +140,13 @@ export function useTurnstile() {
   }
 
   // Run the widget challenge and return a fresh token. Internal primitive
-  // shared by preMintToken (background) and takeToken (click-path fallback).
-  // The optional `signal` aborts the challenge mid-flight when the surrounding
-  // pack request is cancelled — without it, a hung Turnstile iframe would
-  // block the cancel response for up to MINT_TIMEOUT_MS.
-  async function mintToken(signal?: AbortSignal): Promise<string> {
+  // wrapped by the token cache's preMintToken / takeToken.
+  async function mintToken(): Promise<string> {
     error.value = null;
-    const checkAborted = () => {
-      if (signal?.aborted) throw new Error('Turnstile challenge aborted');
-    };
-    checkAborted();
     if (!containerEl.value) {
       throw new Error('Turnstile container element not registered');
     }
-    // Race the script-load step against the caller's abort signal so a
-    // user-initiated cancel during a slow script load (CDN stall, ad
-    // blocker, network blip) doesn't have to wait for MINT_TIMEOUT_MS.
-    const widgetPromise = ensureWidget(containerEl.value);
-    const turnstile = signal
-      ? await Promise.race([
-          widgetPromise,
-          new Promise<never>((_, reject) => {
-            const onPreAbort = () => reject(new Error('Turnstile challenge aborted'));
-            if (signal.aborted) onPreAbort();
-            else signal.addEventListener('abort', onPreAbort, { once: true });
-          }),
-        ])
-      : await widgetPromise;
-    checkAborted();
+    const turnstile = await ensureWidget(containerEl.value);
     if (!widgetId.value) {
       throw new Error('Turnstile widget failed to render');
     }
@@ -193,7 +161,6 @@ export function useTurnstile() {
 
     const myGen = ++currentGen;
     let timeoutId: ReturnType<typeof setTimeout> | undefined;
-    let onAbort: (() => void) | undefined;
 
     const tokenPromise = new Promise<string>((resolve, reject) => {
       // Wrap in gen-checked closures so a delayed widget callback can't
@@ -202,7 +169,6 @@ export function useTurnstile() {
       pendingResolve = (token) => {
         if (myGen !== currentGen) return;
         if (timeoutId !== undefined) clearTimeout(timeoutId);
-        if (onAbort && signal) signal.removeEventListener('abort', onAbort);
         pendingResolve = null;
         pendingReject = null;
         resolve(token);
@@ -210,7 +176,6 @@ export function useTurnstile() {
       pendingReject = (err) => {
         if (myGen !== currentGen) return;
         if (timeoutId !== undefined) clearTimeout(timeoutId);
-        if (onAbort && signal) signal.removeEventListener('abort', onAbort);
         pendingResolve = null;
         pendingReject = null;
         reject(err);
@@ -221,17 +186,9 @@ export function useTurnstile() {
       if (widgetId.value) turnstile.execute(widgetId.value);
     });
 
-    if (signal) {
-      onAbort = () => {
-        if (pendingReject) pendingReject(new Error('Turnstile challenge aborted'));
-      };
-      signal.addEventListener('abort', onAbort, { once: true });
-    }
-
     const timeoutPromise = new Promise<never>((_, reject) => {
       timeoutId = setTimeout(() => {
         if (myGen !== currentGen) return;
-        if (onAbort && signal) signal.removeEventListener('abort', onAbort);
         pendingResolve = null;
         pendingReject = null;
         reject(new Error('Turnstile challenge timed out'));
@@ -240,112 +197,8 @@ export function useTurnstile() {
     return Promise.race([tokenPromise, timeoutPromise]);
   }
 
-  // Single in-flight mint, shared by both pre-mint (background) and
-  // takeToken (click path). Without this sharing, a debounced pre-mint
-  // that fires while the user has already clicked Pack would call
-  // `turnstile.execute()` a second time on the same widget, the
-  // generation-counter supersede logic in mintToken() would reject the
-  // first call as "Superseded", and the user-initiated submit would
-  // surface a `Verification failed` error despite a perfectly valid
-  // challenge being in flight.
-  //
-  // The signal is intentionally not threaded into the shared mint — pre-
-  // mint is unaware of any submit lifecycle. takeToken() races the
-  // shared promise against the caller's signal so a click-then-cancel
-  // unblocks the awaiter without aborting the underlying mint, leaving
-  // the resolved token in the cache for the next submit.
-  function startMint(): Promise<string> {
-    if (mintPromise) return mintPromise;
-    mintPromise = mintToken()
-      .then((token) => {
-        cachedToken = { token, mintedAt: Date.now(), consumed: false };
-        return token;
-      })
-      .catch((err) => {
-        // Don't cache failures — let the next takeToken/preMintToken retry.
-        cachedToken = null;
-        throw err;
-      })
-      .finally(() => {
-        mintPromise = null;
-      });
-    // Swallow rejections at the boundary so an unawaited preMintToken() (the
-    // common case) doesn't trigger an unhandled rejection in the console.
-    mintPromise.catch(() => {
-      /* surfaces on the actual submit path via takeToken */
-    });
-    return mintPromise;
-  }
-
-  // Background pre-mint: kicks off a challenge and stashes the resulting
-  // token for the next takeToken() to consume synchronously. Idempotent —
-  // if a mint is already in flight or a fresh token is cached, no extra
-  // work is done.
-  function preMintToken(): Promise<string> {
-    if (cachedToken && !cachedToken.consumed && !isExpired(cachedToken)) {
-      return Promise.resolve(cachedToken.token);
-    }
-    return startMint();
-  }
-
-  function isExpired(entry: CachedToken): boolean {
-    return Date.now() - entry.mintedAt > TOKEN_TTL_MS;
-  }
-
-  // Acquire a token for an immediate /api/pack submission. Order of
-  // preference:
-  //   1. Fresh, unconsumed cache from a recent preMintToken() — instant.
-  //   2. In-flight mint (own or pre-mint's) — await the shared promise,
-  //      racing against the caller's abort signal so a cancel unblocks
-  //      the awaiter without killing the underlying mint.
-  //   3. Cold path — start a new shared mint via startMint().
-  //
-  // Tokens are 1-shot, so claim the cache atomically (synchronous read +
-  // null-out before any await) — the resolution value of the shared mint
-  // is intentionally ignored, since two concurrent callers awaiting the
-  // same promise would otherwise both receive the same token. If a
-  // concurrent caller already drained the cache, loop and start a fresh
-  // mint instead of returning a duplicate that siteverify would reject
-  // with `timeout-or-duplicate`.
-  async function takeToken(signal?: AbortSignal): Promise<string> {
-    while (true) {
-      if (cachedToken && !cachedToken.consumed && !isExpired(cachedToken)) {
-        const token = cachedToken.token;
-        cachedToken = null;
-        return token;
-      }
-      const sharedMint = startMint();
-      await waitWithAbort(sharedMint, signal);
-      // Loop back: the mint resolved into the cache via startMint's `.then`,
-      // but a concurrent takeToken may have claimed it first. The cache
-      // check at the top of the loop is the single source of truth for
-      // whether we got the token or need to mint another one.
-    }
-  }
-
-  // Race a promise against an AbortSignal. Used by takeToken so a user-
-  // initiated cancel unblocks the await without cancelling the shared
-  // mint behind it (which may still cache its token for the next submit).
-  function waitWithAbort<T>(promise: Promise<T>, signal: AbortSignal | undefined): Promise<T> {
-    if (!signal) return promise;
-    if (signal.aborted) {
-      return Promise.reject(new Error('Turnstile challenge aborted'));
-    }
-    return new Promise<T>((resolve, reject) => {
-      const onAbort = () => reject(new Error('Turnstile challenge aborted'));
-      signal.addEventListener('abort', onAbort, { once: true });
-      promise.then(
-        (value) => {
-          signal.removeEventListener('abort', onAbort);
-          resolve(value);
-        },
-        (err) => {
-          signal.removeEventListener('abort', onAbort);
-          reject(err);
-        },
-      );
-    });
-  }
+  const cache = createTurnstileTokenCache(mintToken);
+  resetCache = cache.reset;
 
   function setContainer(el: HTMLElement | null) {
     containerEl.value = el;
@@ -372,8 +225,7 @@ export function useTurnstile() {
       pendingResolve = null;
       pendingReject = null;
     }
-    cachedToken = null;
-    mintPromise = null;
+    cache.reset();
     if (widgetId.value && window.turnstile) {
       window.turnstile.remove(widgetId.value);
       widgetId.value = null;
@@ -382,8 +234,8 @@ export function useTurnstile() {
 
   return {
     setContainer,
-    preMintToken,
-    takeToken,
+    preMintToken: cache.preMintToken,
+    takeToken: cache.takeToken,
     error,
   };
 }

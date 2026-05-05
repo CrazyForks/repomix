@@ -1,16 +1,19 @@
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 import type { FileInfo, PackProgressStage, PackResult } from '../components/api/client';
 import { handlePackRequest } from '../components/utils/requestHandlers';
 import { isValidRemoteValue } from '../components/utils/validation';
 import { parseUrlParameters } from '../utils/urlParams';
+import { abortMessage, acquireTurnstileToken } from './turnstileSubmit';
 import { usePackOptions } from './usePackOptions';
+import { usePreMintDebounce } from './usePreMintDebounce';
 import { useTurnstile } from './useTurnstile';
 
 // Delay between the user's last interaction and when we kick off the
-// background Turnstile pre-mint. Short enough that the token is usually
-// ready by the time the user reaches for the Pack button, long enough that
-// rapid typing or a quick mode-switch doesn't trigger multiple mints.
-const PRE_MINT_DEBOUNCE_MS = 500;
+// background Turnstile pre-mint. Tuned for the typical paste-then-click
+// cadence: long enough that single-keystroke typing doesn't burn a token,
+// short enough that a paste-and-click within a normal reaction window
+// (~500ms+) usually finds a ready token in the cache.
+const PRE_MINT_DEBOUNCE_MS = 300;
 
 export type InputMode = 'url' | 'file' | 'folder';
 
@@ -26,11 +29,11 @@ export function usePackRequest() {
   const inputRepositoryUrl = ref('');
   const mode = ref<InputMode>('url');
   const uploadedFile = ref<File | null>(null);
-  // True once the user has interacted with the form (typed/pasted a URL,
-  // uploaded a file/folder, or switched modes). Used to gate the Turnstile
-  // pre-mint so URL-parameter hydration (e.g. `?repo=...`), browser form
-  // restoration, or autofill don't trigger background challenges. Resets
-  // back to false would defeat the gate, so it is set-only.
+  // True once the user has signalled real intent: typed/pasted a URL,
+  // uploaded a file/folder, switched modes, tweaked options, or arrived
+  // via a `?repo=...` permalink. Used to gate the Turnstile pre-mint so
+  // browser autofill / form restoration don't trigger background
+  // challenges. Set-only — once true, it stays true for the session.
   const userTouched = ref(false);
 
   // Request states
@@ -72,51 +75,24 @@ export function usePackRequest() {
   }
 
   // Wired to DOM-level input events (paste / IME / drop / typing) by
-  // TryItUrlInput. Watching `inputUrl` directly would also fire on URL-
-  // parameter hydration in onMounted(), which is exactly the case we need
-  // to exclude.
+  // TryItUrlInput, and to TryItPackOptions option-change handlers.
+  // Watching `inputUrl` / `packOptions` directly would also fire on URL-
+  // parameter hydration in onMounted(), which we want to opt into
+  // explicitly (see `?repo=` handling in onMounted) rather than implicitly.
   function markUserTouched() {
     userTouched.value = true;
   }
 
-  // Background pre-mint trigger. Only fires when the form is actually
-  // submittable AND the user has interacted with it — so `?repo=` hydration
-  // and form restoration won't cause a wasted Cloudflare challenge.
-  // Debounced to avoid burning a token on every keystroke. Suppressed while
-  // a request is in flight, since a debounce-firing-during-submit would
-  // burn an extra Turnstile challenge on top of the click path's mint and
-  // inflate the dashboard counter.
-  let preMintDebounceTimer: ReturnType<typeof setTimeout> | undefined;
-  function clearPreMintTimer() {
-    if (preMintDebounceTimer !== undefined) {
-      clearTimeout(preMintDebounceTimer);
-      preMintDebounceTimer = undefined;
-    }
-  }
-  // `loading` is intentionally NOT a watch source — only a guard inside the
-  // callback. Including it in the deps would re-fire the watch on
-  // `loading: true → false`, scheduling a fresh pre-mint immediately after
-  // every pack completion even though the user hasn't done anything new,
-  // re-introducing counter inflation through a different path. The
-  // clearPreMintTimer() call at the top of submitRequest is what stops a
-  // pending debounce from firing mid-submit.
-  watch(
-    [isSubmitValid, userTouched],
-    ([valid, touched]) => {
-      clearPreMintTimer();
-      if (!valid || !touched || loading.value) return;
-      preMintDebounceTimer = setTimeout(() => {
-        preMintDebounceTimer = undefined;
-        turnstile.preMintToken().catch(() => {
-          /* errors surface on the actual submit path */
-        });
-      }, PRE_MINT_DEBOUNCE_MS);
+  const preMint = usePreMintDebounce({
+    isSubmitValid,
+    userTouched,
+    loading,
+    onTrigger: () => {
+      turnstile.preMintToken().catch(() => {
+        /* errors surface on the actual submit path */
+      });
     },
-    { flush: 'post' },
-  );
-
-  onBeforeUnmount(() => {
-    clearPreMintTimer();
+    delayMs: PRE_MINT_DEBOUNCE_MS,
   });
 
   function resetRequest() {
@@ -129,12 +105,10 @@ export function usePackRequest() {
   async function submitRequest() {
     if (!isSubmitValid.value) return;
 
-    // Drop any pending pre-mint debounce. The watch already de-schedules on
-    // `loading=true` flush, but `loading.value = true` is set further down,
-    // so without an explicit clear here a debounce that's about to fire
-    // *this microtask* could still mint an extra token alongside the click
-    // path's mint.
-    clearPreMintTimer();
+    // Drop any pending pre-mint debounce. Without an explicit clear here a
+    // debounce that's about to fire *this microtask* could still mint an
+    // extra token alongside the click path's mint.
+    preMint.clear();
 
     // Cancel any pending request
     if (requestController) {
@@ -162,15 +136,6 @@ export function usePackRequest() {
     // Use .bind() to avoid capturing the surrounding scope in the closure
     const timeoutId = setTimeout(controller.abort.bind(controller, 'timeout'), TIMEOUT_MS);
 
-    // Obtain a 1-shot Turnstile token before issuing the pack request. If the
-    // widget fails (e.g. script blocked by an ad blocker, network error) the
-    // policy is environment-specific:
-    // - In production: surface a user-facing error and skip the request.
-    //   The server-side middleware would 403 anyway, so calling /api/pack
-    //   without a token only wastes a server round-trip.
-    // - In dev/preview: continue without a token. The server skips
-    //   verification when TURNSTILE_SECRET_KEY is unset, so contributors
-    //   without a Cloudflare account can still exercise the pack flow.
     // All UI mutations from this point forward are guarded by `isCurrent()`.
     // Without the guard, a slow request whose user hit cancel-and-resubmit
     // could clobber the new request's `loading` / `result` / `error` state
@@ -179,53 +144,31 @@ export function usePackRequest() {
     // identity is the cleanest way to detect supersession.
     const isCurrent = () => requestController === controller;
 
-    let turnstileToken: string | undefined;
-    try {
-      // Prefer a cached token from the background pre-mint (kicked off when
-      // the form first became submittable). takeToken() consumes the cache
-      // synchronously and falls through to a fresh mint if there's no
-      // usable token. The controller signal aborts an in-flight challenge
-      // when the pack request is cancelled, so a hung widget can't delay
-      // the cancel response.
-      turnstileToken = await turnstile.takeToken(controller.signal);
-    } catch (turnstileError) {
-      console.warn('Turnstile token acquisition failed:', turnstileError);
-      if (controller.signal.aborted) {
-        // The user (or the 30s timeout) cancelled while the challenge was
-        // in flight. Mirror handlePackRequest's onAbort messaging since we
-        // short-circuit before calling it.
-        clearTimeout(timeoutId);
-        if (isCurrent()) {
-          loading.value = false;
-          requestController = null;
-          if (controller.signal.reason === 'timeout') {
-            error.value =
-              'Request timed out.\nPlease consider using Include Patterns or Ignore Patterns to reduce the scope.';
-          } else {
-            error.value = 'Request was cancelled.';
-          }
-          errorType.value = 'warning';
-        }
-        return;
+    // Obtain a 1-shot Turnstile token before issuing the pack request. The
+    // controller signal aborts an in-flight challenge when the pack request
+    // is cancelled, so a hung widget can't delay the cancel response.
+    const tokenResult = await acquireTurnstileToken(turnstile, controller.signal);
+    if (tokenResult.kind === 'aborted') {
+      clearTimeout(timeoutId);
+      if (isCurrent()) {
+        loading.value = false;
+        requestController = null;
+        error.value = abortMessage(tokenResult.reason);
+        errorType.value = 'warning';
       }
-      if (import.meta.env.PROD) {
-        clearTimeout(timeoutId);
-        if (isCurrent()) {
-          loading.value = false;
-          requestController = null;
-          // Distinguish "Turnstile script blocked" (likely an extension) from
-          // generic verification failure so the user has a path to recovery
-          // instead of just being told "try again".
-          const msg = turnstileError instanceof Error ? turnstileError.message : '';
-          const isScriptIssue = /script|load|missing/i.test(msg);
-          error.value = isScriptIssue
-            ? 'Bot protection failed to load. Please disable ad blockers or privacy extensions blocking challenges.cloudflare.com and reload, or use the CLI: npx repomix --remote owner/repo.'
-            : 'Verification failed. Please reload the page and try again.';
-          errorType.value = 'error';
-        }
-        return;
-      }
+      return;
     }
+    if (tokenResult.kind === 'error') {
+      clearTimeout(timeoutId);
+      if (isCurrent()) {
+        loading.value = false;
+        requestController = null;
+        error.value = tokenResult.message;
+        errorType.value = 'error';
+      }
+      return;
+    }
+    const turnstileToken = tokenResult.token;
 
     try {
       await handlePackRequest(
@@ -266,6 +209,14 @@ export function usePackRequest() {
       if (requestController === controller) {
         loading.value = false;
         requestController = null;
+        // Repeat-pack convenience: warm the cache for a likely follow-up
+        // submission (option tweak + repack, or `repackWithSelectedFiles`
+        // triggered from the result view). Skipped on abort/cancel since
+        // the user may have given up. Failures swallow silently — they
+        // surface on the next click via takeToken's cold path.
+        if (!controller.signal.aborted && isSubmitValid.value && userTouched.value) {
+          turnstile.preMintToken().catch(() => {});
+        }
       }
     }
   }
@@ -329,6 +280,13 @@ export function usePackRequest() {
     // Apply repo URL from URL parameters
     if (urlParams.repo) {
       inputUrl.value = urlParams.repo;
+      // A valid `?repo=` permalink is itself an intent signal — the visitor
+      // navigated here specifically to pack this repo, so warm the cache
+      // for the click path. We still gate on validity so a malformed
+      // `?repo=` doesn't burn a challenge for a form that won't submit.
+      if (isValidRemoteValue(urlParams.repo.trim())) {
+        userTouched.value = true;
+      }
     }
   });
 
