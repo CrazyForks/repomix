@@ -59,11 +59,12 @@ export function useTurnstile() {
   // somehow shipped the test sitekey would still 403 every pack.
   const siteKey = import.meta.env.VITE_TURNSTILE_SITE_KEY ?? FALLBACK_TEST_SITE_KEY;
 
-  // Single-flight cache for the in-flight ensureWidget promise. Without it,
-  // pre-warm and getToken() can both race past the `widgetId.value` null
-  // check after `await loadTurnstileScript()` resolves, calling
-  // `turnstile.render()` twice — the first widget id gets overwritten and
-  // leaks (onBeforeUnmount can only remove the surviving id).
+  // Single-flight cache for the in-flight ensureWidget promise. With pack
+  // pre-warm now restricted to `loadTurnstileScript()`, only back-to-back
+  // `getToken()` calls can race here — but two concurrent submits would
+  // still both pass the `widgetId.value` null check after the awaited
+  // script load resolves and call `turnstile.render()` twice, leaking the
+  // first widget id (onBeforeUnmount can only remove the surviving one).
   let ensureWidgetPromise: Promise<TurnstileGlobal> | null = null;
 
   async function ensureWidget(el: HTMLElement): Promise<TurnstileGlobal> {
@@ -82,10 +83,12 @@ export function useTurnstile() {
           sitekey: siteKey,
           size: 'invisible',
           action: 'pack',
-          // Defer the actual challenge until getToken() calls execute(). This
-          // is what makes the pre-warm in setContainer() free of side-effects
-          // (no token waste, no inflated "unresolved challenge" counter for
-          // visitors who never click pack).
+          // Defer the actual challenge until execute() is called below.
+          // Caveat per PR #1541: render() itself still inflates the
+          // Cloudflare dashboard's challenge counters even with this
+          // option, which is why `setContainer()` no longer pre-warms by
+          // calling render(). We still pass `execute` here so render() at
+          // least doesn't auto-mint a token before getToken() is ready.
           execution: 'execute',
           callback: (token: string) => {
             if (pendingResolve) {

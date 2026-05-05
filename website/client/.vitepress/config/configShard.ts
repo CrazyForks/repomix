@@ -211,7 +211,14 @@ export const configShard = defineConfig({
     // pack so the script load + challenge round-trip don't add a cold-start
     // DNS/TLS handshake to the perceived latency. Resource hint only, no
     // request body — does not interact with Turnstile's challenge counter.
+    //
+    // Two `preconnect` hints: the bare one warms the connection pool used
+    // for the anonymous `api.js` script fetch, and the `crossorigin`
+    // variant warms the separate pool the Turnstile iframe uses for its
+    // CORS sub-resources. Browsers treat these as distinct pools, so a
+    // single hint only warms one of them.
     ['link', { rel: 'preconnect', href: 'https://challenges.cloudflare.com' }],
+    ['link', { rel: 'preconnect', href: 'https://challenges.cloudflare.com', crossorigin: '' }],
     ['link', { rel: 'dns-prefetch', href: 'https://challenges.cloudflare.com' }],
 
     // OGP
