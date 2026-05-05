@@ -26,10 +26,12 @@ export async function acquireTurnstileToken(
   try {
     return { kind: 'token', token: await turnstile.takeToken(signal) };
   } catch (err) {
-    console.warn('Turnstile token acquisition failed:', err);
+    // Abort is a normal flow (user cancel, 30s timeout). Don't log it as
+    // a failure — only log genuine challenge / script-load errors.
     if (signal.aborted) {
       return { kind: 'aborted', reason: signal.reason };
     }
+    console.warn('Turnstile token acquisition failed:', err);
     if (import.meta.env.PROD) {
       return { kind: 'error', message: turnstileFailureMessage(err) };
     }

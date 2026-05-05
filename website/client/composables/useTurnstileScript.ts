@@ -14,7 +14,6 @@ export interface TurnstileGlobal {
   execute: (widgetId: string) => void;
   reset: (widgetId: string) => void;
   remove: (widgetId: string) => void;
-  getResponse: (widgetId: string) => string | undefined;
 }
 
 export interface TurnstileRenderOptions {

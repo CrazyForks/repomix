@@ -32,7 +32,6 @@ const MINT_TIMEOUT_MS = 15_000;
 export function useTurnstile() {
   const widgetId = ref<string | null>(null);
   const containerEl = ref<HTMLElement | null>(null);
-  const error = ref<string | null>(null);
 
   // Resolved when the next widget callback produces a token. Reassigned on
   // every mint so back-to-back submits don't share state.
@@ -99,10 +98,8 @@ export function useTurnstile() {
             }
           },
           'error-callback': (errorCode: string) => {
-            const message = `Turnstile error: ${errorCode}`;
-            error.value = message;
             if (pendingReject) {
-              pendingReject(new Error(message));
+              pendingReject(new Error(`Turnstile error: ${errorCode}`));
               pendingResolve = null;
               pendingReject = null;
             }
@@ -147,7 +144,8 @@ export function useTurnstile() {
       throw new Error('Turnstile container element not registered');
     }
     const turnstile = await ensureWidget(containerEl.value);
-    if (!widgetId.value) {
+    const renderedWidgetId = widgetId.value;
+    if (!renderedWidgetId) {
       throw new Error('Turnstile widget failed to render');
     }
 
@@ -182,8 +180,8 @@ export function useTurnstile() {
       };
       // Tokens are 1-shot, so reset() before each execute() to clear any
       // stale challenge state inside the widget itself.
-      if (widgetId.value) turnstile.reset(widgetId.value);
-      if (widgetId.value) turnstile.execute(widgetId.value);
+      turnstile.reset(renderedWidgetId);
+      turnstile.execute(renderedWidgetId);
     });
 
     const timeoutPromise = new Promise<never>((_, reject) => {

@@ -212,9 +212,12 @@ export function usePackRequest() {
         // Repeat-pack convenience: warm the cache for a likely follow-up
         // submission (option tweak + repack, or `repackWithSelectedFiles`
         // triggered from the result view). Skipped on abort/cancel since
-        // the user may have given up. Failures swallow silently — they
-        // surface on the next click via takeToken's cold path.
-        if (!controller.signal.aborted && isSubmitValid.value && userTouched.value) {
+        // the user may have given up, and on invalid form (user may have
+        // cleared the URL mid-request). userTouched is necessarily true
+        // here — it was a precondition for isSubmitValid to be true at
+        // submit start. Failures swallow silently — they surface on the
+        // next click via takeToken's cold path.
+        if (!controller.signal.aborted && isSubmitValid.value) {
           turnstile.preMintToken().catch(() => {});
         }
       }
