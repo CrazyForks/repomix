@@ -1,3 +1,7 @@
+---
+description: Iterative review-and-fix loop using codex
+---
+
 Repeat the following cycle on the current branch's changes against `main` (max 3 iterations):
 
 1. **Review** — Spawn codex reviewer agent
