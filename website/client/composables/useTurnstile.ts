@@ -307,23 +307,27 @@ export function useTurnstile() {
   //      the awaiter without killing the underlying mint.
   //   3. Cold path — start a new shared mint via startMint().
   //
-  // The returned token is marked consumed before this function returns,
-  // so double-clicks can't replay the same token (Cloudflare siteverify
-  // would reject it as `timeout-or-duplicate` anyway, but consuming on
-  // the client side avoids the wasted server round-trip).
+  // Tokens are 1-shot, so claim the cache atomically (synchronous read +
+  // null-out before any await) — the resolution value of the shared mint
+  // is intentionally ignored, since two concurrent callers awaiting the
+  // same promise would otherwise both receive the same token. If a
+  // concurrent caller already drained the cache, loop and start a fresh
+  // mint instead of returning a duplicate that siteverify would reject
+  // with `timeout-or-duplicate`.
   async function takeToken(signal?: AbortSignal): Promise<string> {
-    if (cachedToken && !cachedToken.consumed && !isExpired(cachedToken)) {
-      const token = cachedToken.token;
-      cachedToken = null;
-      return token;
+    while (true) {
+      if (cachedToken && !cachedToken.consumed && !isExpired(cachedToken)) {
+        const token = cachedToken.token;
+        cachedToken = null;
+        return token;
+      }
+      const sharedMint = startMint();
+      await waitWithAbort(sharedMint, signal);
+      // Loop back: the mint resolved into the cache via startMint's `.then`,
+      // but a concurrent takeToken may have claimed it first. The cache
+      // check at the top of the loop is the single source of truth for
+      // whether we got the token or need to mint another one.
     }
-    const sharedMint = startMint();
-    const token = await waitWithAbort(sharedMint, signal);
-    // The mint resolved into the cache via startMint's `.then`; drop the
-    // cache here so a concurrent takeToken (or a follow-up preMintToken)
-    // doesn't hand out the same token twice.
-    cachedToken = null;
-    return token;
   }
 
   // Race a promise against an AbortSignal. Used by takeToken so a user-

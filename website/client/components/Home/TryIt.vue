@@ -86,7 +86,7 @@
         v-model:show-line-numbers="packOptions.showLineNumbers"
         v-model:output-parsable="packOptions.outputParsable"
         v-model:compress="packOptions.compress"
-
+        @user-input="markUserTouched"
       />
 
       <div v-if="hasExecuted">

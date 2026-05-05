@@ -1,4 +1,4 @@
-import { computed, onMounted, ref, watch } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import type { FileInfo, PackProgressStage, PackResult } from '../components/api/client';
 import { handlePackRequest } from '../components/utils/requestHandlers';
 import { isValidRemoteValue } from '../components/utils/validation';
@@ -82,14 +82,31 @@ export function usePackRequest() {
   // Background pre-mint trigger. Only fires when the form is actually
   // submittable AND the user has interacted with it — so `?repo=` hydration
   // and form restoration won't cause a wasted Cloudflare challenge.
-  // Debounced to avoid burning a token on every keystroke.
+  // Debounced to avoid burning a token on every keystroke. Suppressed while
+  // a request is in flight, since a debounce-firing-during-submit would
+  // burn an extra Turnstile challenge on top of the click path's mint and
+  // inflate the dashboard counter.
   let preMintDebounceTimer: ReturnType<typeof setTimeout> | undefined;
+  function clearPreMintTimer() {
+    if (preMintDebounceTimer !== undefined) {
+      clearTimeout(preMintDebounceTimer);
+      preMintDebounceTimer = undefined;
+    }
+  }
+  // `loading` is intentionally NOT a watch source — only a guard inside the
+  // callback. Including it in the deps would re-fire the watch on
+  // `loading: true → false`, scheduling a fresh pre-mint immediately after
+  // every pack completion even though the user hasn't done anything new,
+  // re-introducing counter inflation through a different path. The
+  // clearPreMintTimer() call at the top of submitRequest is what stops a
+  // pending debounce from firing mid-submit.
   watch(
     [isSubmitValid, userTouched],
     ([valid, touched]) => {
-      if (preMintDebounceTimer !== undefined) clearTimeout(preMintDebounceTimer);
-      if (!valid || !touched) return;
+      clearPreMintTimer();
+      if (!valid || !touched || loading.value) return;
       preMintDebounceTimer = setTimeout(() => {
+        preMintDebounceTimer = undefined;
         turnstile.preMintToken().catch(() => {
           /* errors surface on the actual submit path */
         });
@@ -97,6 +114,10 @@ export function usePackRequest() {
     },
     { flush: 'post' },
   );
+
+  onBeforeUnmount(() => {
+    clearPreMintTimer();
+  });
 
   function resetRequest() {
     error.value = null;
@@ -107,6 +128,13 @@ export function usePackRequest() {
 
   async function submitRequest() {
     if (!isSubmitValid.value) return;
+
+    // Drop any pending pre-mint debounce. The watch already de-schedules on
+    // `loading=true` flush, but `loading.value = true` is set further down,
+    // so without an explicit clear here a debounce that's about to fire
+    // *this microtask* could still mint an extra token alongside the click
+    // path's mint.
+    clearPreMintTimer();
 
     // Cancel any pending request
     if (requestController) {
