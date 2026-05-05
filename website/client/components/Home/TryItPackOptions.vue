@@ -27,55 +27,70 @@ const emit = defineEmits<{
   'update:showLineNumbers': [value: boolean];
   'update:outputParsable': [value: boolean];
   'update:compress': [value: boolean];
+  // Emitted on every real user-driven option change so usePackRequest can
+  // gate the Turnstile pre-mint. Mirrors TryItUrlInput's `userInput` —
+  // emitted from DOM-level handlers only, never from URL-parameter
+  // hydration / form restoration paths.
+  userInput: [];
 }>();
 
 function handleFormatChange(newFormat: 'xml' | 'markdown' | 'plain') {
   emit('update:format', newFormat);
+  emit('userInput');
   handleOptionChange(newFormat, AnalyticsAction.FORMAT_CHANGE);
 }
 
 function handleIncludePatternsUpdate(patterns: string) {
   emit('update:includePatterns', patterns);
+  emit('userInput');
   handleOptionChange(patterns, AnalyticsAction.UPDATE_INCLUDE_PATTERNS);
 }
 
 function handleIgnorePatternsUpdate(patterns: string) {
   emit('update:ignorePatterns', patterns);
+  emit('userInput');
   handleOptionChange(patterns, AnalyticsAction.UPDATE_IGNORE_PATTERNS);
 }
 
 function handleFileSummaryToggle(enabled: boolean) {
   emit('update:fileSummary', enabled);
+  emit('userInput');
   handleOptionChange(enabled, AnalyticsAction.TOGGLE_FILE_SUMMARY);
 }
 
 function handleDirectoryStructureToggle(enabled: boolean) {
   emit('update:directoryStructure', enabled);
+  emit('userInput');
   handleOptionChange(enabled, AnalyticsAction.TOGGLE_DIRECTORY_STRUCTURE);
 }
 
 function handleRemoveCommentsToggle(enabled: boolean) {
   emit('update:removeComments', enabled);
+  emit('userInput');
   handleOptionChange(enabled, AnalyticsAction.TOGGLE_REMOVE_COMMENTS);
 }
 
 function handleRemoveEmptyLinesToggle(enabled: boolean) {
   emit('update:removeEmptyLines', enabled);
+  emit('userInput');
   handleOptionChange(enabled, AnalyticsAction.TOGGLE_REMOVE_EMPTY_LINES);
 }
 
 function handleShowLineNumbersToggle(enabled: boolean) {
   emit('update:showLineNumbers', enabled);
+  emit('userInput');
   handleOptionChange(enabled, AnalyticsAction.TOGGLE_LINE_NUMBERS);
 }
 
 function handleOutputParsableToggle(enabled: boolean) {
   emit('update:outputParsable', enabled);
+  emit('userInput');
   handleOptionChange(enabled, AnalyticsAction.TOGGLE_OUTPUT_PARSABLE);
 }
 
 function handleCompressToggle(enabled: boolean) {
   emit('update:compress', enabled);
+  emit('userInput');
   handleOptionChange(enabled, AnalyticsAction.TOGGLE_COMPRESS);
 }
 </script>

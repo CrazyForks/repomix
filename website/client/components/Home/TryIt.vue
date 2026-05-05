@@ -45,6 +45,7 @@
             :loading="loading"
             @keydown="handleKeydown"
             @submit="handleSubmit"
+            @user-input="markUserTouched"
             :show-button="false"
           />
         </div>
@@ -85,7 +86,7 @@
         v-model:show-line-numbers="packOptions.showLineNumbers"
         v-model:output-parsable="packOptions.outputParsable"
         v-model:compress="packOptions.compress"
-
+        @user-input="markUserTouched"
       />
 
       <div v-if="hasExecuted">
@@ -157,6 +158,7 @@ const {
   resetOptions,
   cancelRequest,
   setTurnstileContainer,
+  markUserTouched,
 } = usePackRequest();
 
 // Wire the template ref into useTurnstile so the widget renders into the
