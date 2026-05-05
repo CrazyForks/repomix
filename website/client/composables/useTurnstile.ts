@@ -240,18 +240,21 @@ export function useTurnstile() {
     return Promise.race([tokenPromise, timeoutPromise]);
   }
 
-  // Background pre-mint: kicks off a challenge and stashes the resulting
-  // token for the next takeToken() to consume synchronously. Caller-supplied
-  // signals from the submit flow are deliberately *not* threaded here —
-  // pre-mint runs in the background of the form, divorced from any single
-  // pack lifecycle.
+  // Single in-flight mint, shared by both pre-mint (background) and
+  // takeToken (click path). Without this sharing, a debounced pre-mint
+  // that fires while the user has already clicked Pack would call
+  // `turnstile.execute()` a second time on the same widget, the
+  // generation-counter supersede logic in mintToken() would reject the
+  // first call as "Superseded", and the user-initiated submit would
+  // surface a `Verification failed` error despite a perfectly valid
+  // challenge being in flight.
   //
-  // Idempotent across repeat calls: if a mint is already in flight, return
-  // the existing promise; if a fresh token is already cached, no-op.
-  function preMintToken(): Promise<string> {
-    if (cachedToken && !cachedToken.consumed && !isExpired(cachedToken)) {
-      return Promise.resolve(cachedToken.token);
-    }
+  // The signal is intentionally not threaded into the shared mint — pre-
+  // mint is unaware of any submit lifecycle. takeToken() races the
+  // shared promise against the caller's signal so a click-then-cancel
+  // unblocks the awaiter without aborting the underlying mint, leaving
+  // the resolved token in the cache for the next submit.
+  function startMint(): Promise<string> {
     if (mintPromise) return mintPromise;
     mintPromise = mintToken()
       .then((token) => {
@@ -274,6 +277,17 @@ export function useTurnstile() {
     return mintPromise;
   }
 
+  // Background pre-mint: kicks off a challenge and stashes the resulting
+  // token for the next takeToken() to consume synchronously. Idempotent —
+  // if a mint is already in flight or a fresh token is cached, no extra
+  // work is done.
+  function preMintToken(): Promise<string> {
+    if (cachedToken && !cachedToken.consumed && !isExpired(cachedToken)) {
+      return Promise.resolve(cachedToken.token);
+    }
+    return startMint();
+  }
+
   // Drop any cached token without minting a new one. Called explicitly by
   // usePackRequest after a token has been handed to a submit so the same
   // token can never be reused, regardless of how the request resolved.
@@ -288,30 +302,52 @@ export function useTurnstile() {
   // Acquire a token for an immediate /api/pack submission. Order of
   // preference:
   //   1. Fresh, unconsumed cache from a recent preMintToken() — instant.
-  //   2. Currently-in-flight pre-mint — await the same promise; no
-  //      additional execute() call.
-  //   3. Cold path — mint synchronously with the supplied abort signal.
+  //   2. In-flight mint (own or pre-mint's) — await the shared promise,
+  //      racing against the caller's abort signal so a cancel unblocks
+  //      the awaiter without killing the underlying mint.
+  //   3. Cold path — start a new shared mint via startMint().
   //
-  // The returned token is marked consumed before this function returns, so
-  // double-clicks can't replay the same token (Cloudflare siteverify would
-  // reject it as `timeout-or-duplicate` anyway, but consuming on the client
-  // side avoids the wasted server round-trip).
+  // The returned token is marked consumed before this function returns,
+  // so double-clicks can't replay the same token (Cloudflare siteverify
+  // would reject it as `timeout-or-duplicate` anyway, but consuming on
+  // the client side avoids the wasted server round-trip).
   async function takeToken(signal?: AbortSignal): Promise<string> {
     if (cachedToken && !cachedToken.consumed && !isExpired(cachedToken)) {
       const token = cachedToken.token;
       cachedToken = null;
       return token;
     }
-    if (mintPromise) {
-      const token = await mintPromise;
-      // The pre-mint that filled the cache may have been consumed by a
-      // concurrent caller; drop our copy regardless and return the awaited
-      // token to this submit. Clearing the cache here prevents the same
-      // token from being handed out twice.
-      cachedToken = null;
-      return token;
+    const sharedMint = startMint();
+    const token = await waitWithAbort(sharedMint, signal);
+    // The mint resolved into the cache via startMint's `.then`; drop the
+    // cache here so a concurrent takeToken (or a follow-up preMintToken)
+    // doesn't hand out the same token twice.
+    cachedToken = null;
+    return token;
+  }
+
+  // Race a promise against an AbortSignal. Used by takeToken so a user-
+  // initiated cancel unblocks the await without cancelling the shared
+  // mint behind it (which may still cache its token for the next submit).
+  function waitWithAbort<T>(promise: Promise<T>, signal: AbortSignal | undefined): Promise<T> {
+    if (!signal) return promise;
+    if (signal.aborted) {
+      return Promise.reject(new Error('Turnstile challenge aborted'));
     }
-    return mintToken(signal);
+    return new Promise<T>((resolve, reject) => {
+      const onAbort = () => reject(new Error('Turnstile challenge aborted'));
+      signal.addEventListener('abort', onAbort, { once: true });
+      promise.then(
+        (value) => {
+          signal.removeEventListener('abort', onAbort);
+          resolve(value);
+        },
+        (err) => {
+          signal.removeEventListener('abort', onAbort);
+          reject(err);
+        },
+      );
+    });
   }
 
   function setContainer(el: HTMLElement | null) {
