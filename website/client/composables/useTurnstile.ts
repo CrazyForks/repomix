@@ -288,13 +288,6 @@ export function useTurnstile() {
     return startMint();
   }
 
-  // Drop any cached token without minting a new one. Called explicitly by
-  // usePackRequest after a token has been handed to a submit so the same
-  // token can never be reused, regardless of how the request resolved.
-  function invalidateCache(): void {
-    cachedToken = null;
-  }
-
   function isExpired(entry: CachedToken): boolean {
     return Date.now() - entry.mintedAt > TOKEN_TTL_MS;
   }
@@ -391,7 +384,6 @@ export function useTurnstile() {
     setContainer,
     preMintToken,
     takeToken,
-    invalidateCache,
     error,
   };
 }

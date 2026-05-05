@@ -143,7 +143,7 @@ export function usePackRequest() {
     requestController = new AbortController();
     // Capture the controller in a local const before any await. cancelRequest()
     // can null out the shared `requestController` while we're awaiting
-    // turnstile.getToken(); reading `requestController.signal` after that
+    // turnstile.takeToken(); reading `requestController.signal` after that
     // would throw TypeError. The local reference still points to the original
     // (already-aborted) controller, so the downstream signal check in
     // handlePackRequest still works correctly.

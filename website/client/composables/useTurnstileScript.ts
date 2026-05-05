@@ -31,9 +31,10 @@ export interface TurnstileRenderOptions {
   // NOTE: production telemetry (PR #1539 → #1541) showed that even with
   // `execution: 'execute'` the dashboard still counts every render() call
   // toward "challenges issued / solved", contradicting the public docs. The
-  // useTurnstile composable now defers render() to the first getToken()
-  // call instead of pre-warming at form mount, which is the only reliable
-  // way to keep the dashboard counters aligned with real submissions.
+  // useTurnstile composable now defers render() to the first takeToken() /
+  // preMintToken() call instead of pre-warming at form mount, which is the
+  // only reliable way to keep the dashboard counters aligned with real
+  // submissions.
   execution?: 'render' | 'execute';
   callback?: (token: string) => void;
   'error-callback'?: (errorCode: string) => void;
@@ -58,7 +59,7 @@ export function loadTurnstileScript(): Promise<TurnstileGlobal> {
   // Reset state on rejection so a transient CDN failure (ad blocker, network
   // blip) doesn't permanently lock the page out of Turnstile. Without this,
   // the rejected promise would be cached forever and every subsequent
-  // getToken() call would inherit the same stale rejection.
+  // takeToken() call would inherit the same stale rejection.
   //
   // Belt-and-suspenders: also drop the global onload callback so a late-
   // arriving script load (e.g. extension interference resolving after
