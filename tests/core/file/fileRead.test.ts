@@ -160,6 +160,50 @@ def hello():
     expect(result.skippedReason).toBeUndefined();
   });
 
+  test('should skip files starting with PDF magic even when valid UTF-8', async () => {
+    // Regression: the cheap pre-screen before the UTF-8 fast path must mirror
+    // `isbinaryfile`'s `%PDF-` magic rule. A no-extension or `.txt` file whose
+    // header is valid UTF-8 starting with `%PDF-` (e.g. an extracted PDF body
+    // mis-classified by extension) was previously skipped as binary-content;
+    // dropping the rule would silently pack PDF bytes as text.
+    const filePath = path.join(testDir, 'looks-like-pdf.txt');
+    await fs.writeFile(filePath, '%PDF-1.4\n1 0 obj\n<<>>\nendobj\n', 'utf-8');
+
+    const result = await readRawFile(filePath, 1024);
+
+    expect(result.content).toBeNull();
+    expect(result.skippedReason).toBe('binary-content');
+  });
+
+  test('should skip files with high suspicious-control-byte ratio even when valid UTF-8', async () => {
+    // Regression: bytes 0x01..0x06, 0x0F..0x1F and 0x7F are valid UTF-8 single
+    // code points (U+0001..U+0006, U+000F..U+001F, U+007F) so a buffer composed
+    // of them passes `TextDecoder('utf-8', { fatal: true })`. `isbinaryfile`
+    // flags such buffers as binary via its >10% suspicious-byte ratio rule;
+    // dropping it would let pure-control-byte blobs leak through as text.
+    const filePath = path.join(testDir, 'control-bytes.txt');
+    await fs.writeFile(filePath, Buffer.alloc(64, 0x01));
+
+    const result = await readRawFile(filePath, 1024);
+
+    expect(result.content).toBeNull();
+    expect(result.skippedReason).toBe('binary-content');
+  });
+
+  test('should not classify valid UTF-8 file dominated by DEL (0x7F) as binary', async () => {
+    // Boundary: `isbinaryfile@5.0.2`'s condition `b < 32 || b > 127` excludes
+    // DEL (0x7F) from the suspicious-byte set. The cheap pre-screen mirrors
+    // that boundary. Guards against future refactors re-including 0x7F, which
+    // would newly skip valid UTF-8 files containing many DEL bytes.
+    const filePath = path.join(testDir, 'del-bytes.txt');
+    await fs.writeFile(filePath, Buffer.alloc(64, 0x7f));
+
+    const result = await readRawFile(filePath, 1024);
+
+    expect(result.skippedReason).toBeUndefined();
+    expect(result.content).toBe('\x7f'.repeat(64));
+  });
+
   test('should decode UTF-16 LE BOM file despite embedded NULL bytes', async () => {
     // Regression: the cheap NULL-byte binary probe ahead of the UTF-8 try
     // would misclassify UTF-16/UTF-32 text files (whose ASCII characters

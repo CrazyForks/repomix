@@ -24,10 +24,14 @@ export interface FileReadResult {
   skippedReason?: FileSkipReason;
 }
 
-// Number of leading bytes to inspect for the cheap null-byte binary probe.
+// Number of leading bytes to inspect for the cheap binary probe.
 // Mirrors `isbinaryfile`'s `MAX_BYTES` so the probe covers the same window
-// the library would have considered for the strongest binary signal.
+// the library would have considered.
 const BINARY_PROBE_BYTES = 512;
+
+// `isbinaryfile` flags >10% suspicious-control-byte ratio as binary. Mirror
+// that threshold so cheap pre-screen has the same boundary on valid UTF-8.
+const SUSPICIOUS_BYTE_RATIO_THRESHOLD_PERCENT = 10;
 
 /**
  * Check whether the buffer starts with a UTF-16/UTF-32 BOM. These encodings
@@ -90,31 +94,62 @@ export const readRawFile = async (filePath: string, maxFileSize: number): Promis
       return { content: null, skippedReason: 'size-limit' };
     }
 
-    // Fast binary probe: scan the leading bytes for a NULL byte. NULL is the
-    // single strongest binary signal (executables, images with embedded
-    // metadata, compiled formats all carry one in their header) and it's
-    // also the only `isBinaryCheck` rule that triggers on inputs that would
-    // pass `TextDecoder('utf-8', { fatal: true })` — NULL is U+0000, valid
-    // UTF-8. Catching it here lets the common UTF-8 path below skip the
-    // full `isBinaryFile` call, which has a pathological case in
-    // `isbinaryfile`'s protobuf detector that can spend several seconds on
-    // certain valid-UTF-8 byte patterns (e.g. a 4 KB Korean Markdown file
-    // measured at ~3500ms on this branch) before throwing `Invalid array
-    // length`. Such files were silently dropped as `encoding-error` after
-    // the throw was caught below — fixing that side-effect along with the
-    // wall-clock cost.
+    // Cheap binary probe: mirrors the parts of `isbinaryfile`'s `isBinaryCheck`
+    // that trigger on inputs which would pass `TextDecoder('utf-8', { fatal: true })`,
+    // minus the protobuf detector. Catching them here lets the common UTF-8 path
+    // below skip the full `isBinaryFile` call, which has a pathological case in
+    // `isbinaryfile`'s protobuf detector that can spend several seconds on certain
+    // valid-UTF-8 byte patterns (e.g. a 4 KB Korean Markdown file measured at
+    // ~3500ms on this branch) before throwing `Invalid array length`. Such files
+    // were silently dropped as `encoding-error` after the throw was caught below.
     //
-    // UTF-16/UTF-32 text files contain NULLs throughout their content but
-    // are not binary; they were previously rescued by `isbinaryfile`'s
-    // BOM exemption and then decoded via jschardet+iconv. Skip the probe
-    // for them so they still reach the slow path unchanged.
+    // Rules mirrored from `isbinaryfile@5.0.2/lib/index.js#isBinaryCheck`:
+    // - PDF magic (`%PDF-`) → binary
+    // - NULL byte in first 512 bytes → binary
+    // - Suspicious control-byte ratio > 10% over 512 bytes → binary
+    // The protobuf detector (which only runs when suspicious bytes > 1) is the
+    // pathological case and is intentionally not mirrored.
+    //
+    // UTF-16/UTF-32 text files contain NULLs throughout their content but are
+    // not binary; `isbinaryfile` exempts them via BOM and then decodes via
+    // jschardet+iconv. Skip the probe for them so they reach the slow path
+    // unchanged.
     if (!hasNonUtf8TextBom(buffer)) {
+      // PDF magic (5 bytes: `%PDF-`)
+      if (
+        buffer.length >= 5 &&
+        buffer[0] === 0x25 &&
+        buffer[1] === 0x50 &&
+        buffer[2] === 0x44 &&
+        buffer[3] === 0x46 &&
+        buffer[4] === 0x2d
+      ) {
+        logger.debug(`Skipping binary file (PDF magic): ${filePath}`);
+        return { content: null, skippedReason: 'binary-content' };
+      }
+
+      // NULL byte + suspicious control-byte ratio scan over first 512 bytes.
+      // Suspicious bytes mirror isbinaryfile's check: bytes < 7 (excluding NULL,
+      // which is handled separately) or in 0x0F..0x1F. DEL (0x7F) is NOT
+      // counted because `isbinaryfile`'s condition `b < 32 || b > 127` excludes
+      // it. Valid UTF-8 multi-byte continuation/lead bytes are 0x80..0xFF and
+      // never fall into these ranges, so a flat byte scan is correct on
+      // valid-UTF-8 input.
       const probeLen = Math.min(buffer.length, BINARY_PROBE_BYTES);
+      let suspicious = 0;
       for (let i = 0; i < probeLen; i++) {
-        if (buffer[i] === 0) {
+        const b = buffer[i];
+        if (b === 0) {
           logger.debug(`Skipping binary file (null-byte probe): ${filePath}`);
           return { content: null, skippedReason: 'binary-content' };
         }
+        if (b < 7 || (b >= 0x0f && b <= 0x1f)) {
+          suspicious++;
+        }
+      }
+      if (suspicious * 100 > probeLen * SUSPICIOUS_BYTE_RATIO_THRESHOLD_PERCENT) {
+        logger.debug(`Skipping binary file (suspicious-byte ratio): ${filePath}`);
+        return { content: null, skippedReason: 'binary-content' };
       }
     }
 
