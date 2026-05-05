@@ -24,10 +24,6 @@ export interface FileReadResult {
   skippedReason?: FileSkipReason;
 }
 
-// Number of leading bytes to inspect for the cheap NULL-byte binary probe.
-// Mirrors `isbinaryfile`'s `MAX_BYTES`.
-const BINARY_PROBE_BYTES = 512;
-
 /**
  * Check whether the buffer starts with a known text-encoding BOM. UTF-16 and
  * UTF-32 sprinkle NULL bytes through text content (UTF-16 LE encodes ASCII `A`
@@ -93,28 +89,24 @@ export const readRawFile = async (filePath: string, maxFileSize: number): Promis
       return { content: null, skippedReason: 'size-limit' };
     }
 
-    // Cheap NULL-byte probe over the leading 512 bytes. NULL is U+0000 — valid
-    // UTF-8 — so without this probe a buffer containing NULL would pass the
-    // `TextDecoder('utf-8', { fatal: true })` fast path below and be packed as
-    // text, even though NULL is unrepresentable in XML 1.0 output and would
-    // break downstream parsers. Catching it here also lets the common UTF-8
-    // path skip the full `isBinaryFile` call, which has a pathological case in
+    // NULL-byte probe across the whole buffer (native `Buffer.indexOf` is a
+    // SIMD-backed scan, not a JS loop). NULL is U+0000 — valid UTF-8 — so
+    // without this probe a buffer containing NULL would pass the
+    // `TextDecoder('utf-8', { fatal: true })` fast path below and be packed
+    // as text, but NULL is unrepresentable in XML 1.0 output and would break
+    // downstream parsers. Catching it here also lets the common UTF-8 path
+    // skip the full `isBinaryFile` call, which has a pathological case in
     // `isbinaryfile`'s protobuf detector that can spend seconds on certain
-    // valid-UTF-8 byte patterns (e.g. a 4 KB Korean Markdown file measured at
-    // ~3500ms on this branch) before throwing `Invalid array length`.
+    // valid-UTF-8 byte patterns (e.g. a 4 KB Korean Markdown file measured
+    // at ~3500ms on this branch) before throwing `Invalid array length`.
     //
     // BOM-marked text files (UTF-8 / UTF-16 / UTF-32 / GB18030) are exempted:
-    // UTF-16/UTF-32 sprinkle NULLs through legitimate text content; UTF-8 BOM
-    // is exempted for parity with `isbinaryfile`'s short-circuit (a buffer like
-    // `EF BB BF 00 41` was treated as text before this PR).
-    if (!hasTextBom(buffer)) {
-      const probeLen = Math.min(buffer.length, BINARY_PROBE_BYTES);
-      for (let i = 0; i < probeLen; i++) {
-        if (buffer[i] === 0) {
-          logger.debug(`Skipping binary file (null-byte probe): ${filePath}`);
-          return { content: null, skippedReason: 'binary-content' };
-        }
-      }
+    // UTF-16/UTF-32 sprinkle NULLs through legitimate text content; UTF-8
+    // BOM is exempted for parity with `isbinaryfile`'s short-circuit (a
+    // buffer like `EF BB BF 00 41` was treated as text before this PR).
+    if (!hasTextBom(buffer) && buffer.indexOf(0) !== -1) {
+      logger.debug(`Skipping binary file (null-byte probe): ${filePath}`);
+      return { content: null, skippedReason: 'binary-content' };
     }
 
     // Fast path: Try UTF-8 decoding first (covers ~99% of source code files).
