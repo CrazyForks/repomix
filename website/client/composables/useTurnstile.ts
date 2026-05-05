@@ -233,20 +233,22 @@ export function useTurnstile() {
 
   function setContainer(el: HTMLElement | null) {
     containerEl.value = el;
-    // Pre-warm: load the Turnstile script and render the (invisible) widget
-    // as soon as the container is registered, instead of waiting for the
-    // first `getToken()` call. This trades a small amount of page-idle work
-    // for a noticeably shorter "Processing repository..." gap when the user
-    // clicks pack — `execute()` on a ready widget typically returns in
-    // 100-200ms, vs 500-1000ms when script load + widget init happen
-    // serially with the click.
+    // Pre-warm scope: ONLY load the Turnstile script, do NOT render the
+    // widget here. Production telemetry showed that calling
+    // `turnstile.render()` at form-mount time inflated the Cloudflare
+    // dashboard's "challenge issued / solved" counters far beyond the GA
+    // pack_start volume — every visitor (humans, crawlers, ad-blocker
+    // failures) was being counted into Turnstile analytics even though the
+    // widget was configured with `execution: 'execute'`. The docs say
+    // render() shouldn't fire a challenge in that mode, but the analytics
+    // disagree, so we no longer trust render() to be side-effect free at
+    // mount time. Render is now deferred to the first `getToken()` call.
     //
     // Errors are intentionally swallowed: a failed pre-warm doesn't block
-    // page rendering, and the same `loadTurnstileScript` / `ensureWidget`
-    // path will retry (with full error propagation) when `getToken()` is
-    // eventually called.
+    // page rendering, and the same `loadTurnstileScript` path will retry
+    // (with full error propagation) when `getToken()` is eventually called.
     if (el) {
-      ensureWidget(el).catch(() => {
+      loadTurnstileScript().catch(() => {
         // pre-warm failures surface on the actual submit path
       });
     }

@@ -207,6 +207,13 @@ export const configShard = defineConfig({
     // Favicon
     ['link', { rel: 'icon', href: '/images/repomix-logo.svg' }],
 
+    // Warm up the connection to Cloudflare Turnstile before the user clicks
+    // pack so the script load + challenge round-trip don't add a cold-start
+    // DNS/TLS handshake to the perceived latency. Resource hint only, no
+    // request body — does not interact with Turnstile's challenge counter.
+    ['link', { rel: 'preconnect', href: 'https://challenges.cloudflare.com' }],
+    ['link', { rel: 'dns-prefetch', href: 'https://challenges.cloudflare.com' }],
+
     // OGP
     ['meta', { property: 'og:type', content: 'website' }],
     ['meta', { property: 'og:site_name', content: siteName }],
