@@ -108,6 +108,14 @@ export function useTurnstile() {
             // Token expired before being used. Drop the cache so the next
             // takeToken() refreshes; the widget will issue a fresh token on
             // the next execute() call.
+            //
+            // Intentionally do NOT auto-rearm pre-mint here. A user who
+            // fills the form and then leaves the tab idle would otherwise
+            // burn a challenge every TOKEN_TTL_MS (~4 minutes) for the
+            // entire lifetime of the page, re-creating dashboard counter
+            // inflation. The trade-off is that an idle-then-return user
+            // pays the cold mint latency on their next click; for a tab
+            // left open for hours, that's the right call.
             resetCache();
             if (widgetId.value) turnstile.reset(widgetId.value);
           },

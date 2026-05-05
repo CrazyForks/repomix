@@ -30,10 +30,11 @@ export function usePackRequest() {
   const mode = ref<InputMode>('url');
   const uploadedFile = ref<File | null>(null);
   // True once the user has signalled real intent: typed/pasted a URL,
-  // uploaded a file/folder, switched modes, tweaked options, or arrived
-  // via a `?repo=...` permalink. Used to gate the Turnstile pre-mint so
-  // browser autofill / form restoration don't trigger background
-  // challenges. Set-only — once true, it stays true for the session.
+  // uploaded a file/folder, switched modes, or tweaked options. Used to
+  // gate the Turnstile pre-mint so URL-parameter hydration (`?repo=...`),
+  // browser autofill, form restoration, and JS-executing link unfurlers
+  // don't trigger background challenges. Set-only — once true, it stays
+  // true for the session.
   const userTouched = ref(false);
 
   // Request states
@@ -280,16 +281,17 @@ export function usePackRequest() {
     // Apply pack options from URL parameters
     applyUrlParameters(urlParams);
 
-    // Apply repo URL from URL parameters
+    // Apply repo URL from URL parameters. Intentionally do NOT flip
+    // `userTouched` here even when the value is valid: third-party pages
+    // driving traffic to `https://repomix.com/?repo=<...>` would otherwise
+    // amplify dashboard counters via link unfurlers (Slack / Discord /
+    // Twitter card validators that execute JS) — re-creating the
+    // page-view-shaped inflation this PR is meant to fix. Permalink
+    // visitors still pay the cold mint on click; the user's first real
+    // form interaction (typing, mode click, option tweak, file upload)
+    // is what gates the pre-mint.
     if (urlParams.repo) {
       inputUrl.value = urlParams.repo;
-      // A valid `?repo=` permalink is itself an intent signal — the visitor
-      // navigated here specifically to pack this repo, so warm the cache
-      // for the click path. We still gate on validity so a malformed
-      // `?repo=` doesn't burn a challenge for a form that won't submit.
-      if (isValidRemoteValue(urlParams.repo.trim())) {
-        userTouched.value = true;
-      }
     }
   });
 
