@@ -24,26 +24,18 @@ export interface FileReadResult {
   skippedReason?: FileSkipReason;
 }
 
-// Number of leading bytes to inspect for the cheap binary probe.
-// Mirrors `isbinaryfile`'s `MAX_BYTES` so the probe covers the same window
-// the library would have considered.
+// Number of leading bytes to inspect for the cheap NULL-byte binary probe.
+// Mirrors `isbinaryfile`'s `MAX_BYTES`.
 const BINARY_PROBE_BYTES = 512;
-
-// `isbinaryfile` flags >10% suspicious-control-byte ratio as binary. Mirror
-// that threshold so cheap pre-screen has the same boundary on valid UTF-8.
-const SUSPICIOUS_BYTE_RATIO_THRESHOLD_PERCENT = 10;
 
 /**
  * Check whether the buffer starts with a known text-encoding BOM. UTF-16 and
  * UTF-32 sprinkle NULL bytes through text content (UTF-16 LE encodes ASCII `A`
  * as `0x41 0x00`; UTF-32 BE BOM is `0x00 0x00 0xFE 0xFF`), so the cheap
  * NULL-byte binary probe would otherwise misclassify them. UTF-8 BOM is
- * included for parity with `isbinaryfile`'s `isBinaryCheck`, which short-
- * circuits to "not binary" on any of these BOMs before the NULL/suspicious-
- * byte rules — buffers like `EF BB BF 00 41` (UTF-8 BOM + NULL + 'A') were
- * therefore classified as text in the prior behavior and must continue to
- * fall through to the UTF-8 fast path / slow path here. Byte patterns mirror
- * `isbinaryfile`'s own BOM-exemption checks.
+ * included so buffers like `EF BB BF 00 41` (UTF-8 BOM + NULL + 'A') keep the
+ * `isbinaryfile` short-circuit-to-text behavior they had before this PR.
+ * Byte patterns mirror `isbinaryfile`'s own BOM-exemption checks.
  */
 const hasTextBom = (buffer: Buffer): boolean => {
   // UTF-8 BOM
@@ -101,63 +93,27 @@ export const readRawFile = async (filePath: string, maxFileSize: number): Promis
       return { content: null, skippedReason: 'size-limit' };
     }
 
-    // Cheap binary probe: mirrors the parts of `isbinaryfile`'s `isBinaryCheck`
-    // that trigger on inputs which would pass `TextDecoder('utf-8', { fatal: true })`,
-    // minus the protobuf detector. Catching them here lets the common UTF-8 path
-    // below skip the full `isBinaryFile` call, which has a pathological case in
-    // `isbinaryfile`'s protobuf detector that can spend several seconds on certain
+    // Cheap NULL-byte probe over the leading 512 bytes. NULL is U+0000 — valid
+    // UTF-8 — so without this probe a buffer containing NULL would pass the
+    // `TextDecoder('utf-8', { fatal: true })` fast path below and be packed as
+    // text, even though NULL is unrepresentable in XML 1.0 output and would
+    // break downstream parsers. Catching it here also lets the common UTF-8
+    // path skip the full `isBinaryFile` call, which has a pathological case in
+    // `isbinaryfile`'s protobuf detector that can spend seconds on certain
     // valid-UTF-8 byte patterns (e.g. a 4 KB Korean Markdown file measured at
-    // ~3500ms on this branch) before throwing `Invalid array length`. Such files
-    // were silently dropped as `encoding-error` after the throw was caught below.
-    //
-    // Rules mirrored from `isbinaryfile@5.0.2/lib/index.js#isBinaryCheck`:
-    // - PDF magic (`%PDF-`) → binary
-    // - NULL byte in first 512 bytes → binary
-    // - Suspicious control-byte ratio > 10% over 512 bytes → binary
-    // The protobuf detector (which only runs when suspicious bytes > 1) is the
-    // pathological case and is intentionally not mirrored.
+    // ~3500ms on this branch) before throwing `Invalid array length`.
     //
     // BOM-marked text files (UTF-8 / UTF-16 / UTF-32 / GB18030) are exempted:
-    // UTF-16/UTF-32 sprinkle NULLs through content; UTF-8 BOM is exempted by
-    // `isbinaryfile` itself before any of the binary heuristics run, so a
-    // buffer like `EF BB BF 00 41` was previously classified as text and
-    // must continue to fall through the fast/slow paths here.
+    // UTF-16/UTF-32 sprinkle NULLs through legitimate text content; UTF-8 BOM
+    // is exempted for parity with `isbinaryfile`'s short-circuit (a buffer like
+    // `EF BB BF 00 41` was treated as text before this PR).
     if (!hasTextBom(buffer)) {
-      // PDF magic (5 bytes: `%PDF-`)
-      if (
-        buffer.length >= 5 &&
-        buffer[0] === 0x25 &&
-        buffer[1] === 0x50 &&
-        buffer[2] === 0x44 &&
-        buffer[3] === 0x46 &&
-        buffer[4] === 0x2d
-      ) {
-        logger.debug(`Skipping binary file (PDF magic): ${filePath}`);
-        return { content: null, skippedReason: 'binary-content' };
-      }
-
-      // NULL byte + suspicious control-byte ratio scan over first 512 bytes.
-      // Suspicious bytes mirror isbinaryfile's check: bytes < 7 (excluding NULL,
-      // which is handled separately) or in 0x0F..0x1F. DEL (0x7F) is NOT
-      // counted because `isbinaryfile`'s condition `b < 32 || b > 127` excludes
-      // it. Valid UTF-8 multi-byte continuation/lead bytes are 0x80..0xFF and
-      // never fall into these ranges, so a flat byte scan is correct on
-      // valid-UTF-8 input.
       const probeLen = Math.min(buffer.length, BINARY_PROBE_BYTES);
-      let suspicious = 0;
       for (let i = 0; i < probeLen; i++) {
-        const b = buffer[i];
-        if (b === 0) {
+        if (buffer[i] === 0) {
           logger.debug(`Skipping binary file (null-byte probe): ${filePath}`);
           return { content: null, skippedReason: 'binary-content' };
         }
-        if (b < 7 || (b >= 0x0f && b <= 0x1f)) {
-          suspicious++;
-        }
-      }
-      if (suspicious * 100 > probeLen * SUSPICIOUS_BYTE_RATIO_THRESHOLD_PERCENT) {
-        logger.debug(`Skipping binary file (suspicious-byte ratio): ${filePath}`);
-        return { content: null, skippedReason: 'binary-content' };
       }
     }
 
@@ -175,10 +131,9 @@ export const readRawFile = async (filePath: string, maxFileSize: number): Promis
       // Not valid UTF-8, fall through to binary check + encoding detection
     }
 
-    // Buffer is not valid UTF-8. Run the full `isBinaryFile` check now —
-    // the null-byte probe above already excluded the strongest binary signal,
-    // so reaching this point means the remaining `isBinaryCheck` heuristics
-    // (PDF magic, suspicious-byte ratio, protobuf shape) decide the outcome.
+    // Buffer is not valid UTF-8. Run the full `isBinaryFile` check now to
+    // distinguish real binaries (PE/ELF/PNG/etc.) from legacy-encoded text
+    // (Shift-JIS, EUC-KR, GBK, …) that should still reach the slow path.
     if (await isBinaryFile(buffer)) {
       logger.debug(`Skipping binary file (content check): ${filePath}`);
       return { content: null, skippedReason: 'binary-content' };
