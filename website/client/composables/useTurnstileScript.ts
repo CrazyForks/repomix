@@ -26,12 +26,14 @@ export interface TurnstileRenderOptions {
   action?: string;
   // 'render' (Cloudflare default) auto-runs the challenge on render(),
   // 'execute' waits for an explicit turnstile.execute() call. Use 'execute'
-  // so the pre-warm path (render at form mount) only loads the script and
-  // widget shell — no challenge runs and no token is minted until the user
-  // clicks pack. Without this, render() fires a wasted challenge per page
-  // view, which (a) inflates the Turnstile dashboard's "unresolved
-  // challenges" counter for any non-human visitor, and (b) burns one token
-  // before the user actually submits.
+  // so the widget can be rendered without immediately minting a token.
+  //
+  // NOTE: production telemetry (PR #1539 → #1541) showed that even with
+  // `execution: 'execute'` the dashboard still counts every render() call
+  // toward "challenges issued / solved", contradicting the public docs. The
+  // useTurnstile composable now defers render() to the first getToken()
+  // call instead of pre-warming at form mount, which is the only reliable
+  // way to keep the dashboard counters aligned with real submissions.
   execution?: 'render' | 'execute';
   callback?: (token: string) => void;
   'error-callback'?: (errorCode: string) => void;
