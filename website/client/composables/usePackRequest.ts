@@ -1,10 +1,16 @@
-import { computed, onMounted, ref } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 import type { FileInfo, PackProgressStage, PackResult } from '../components/api/client';
 import { handlePackRequest } from '../components/utils/requestHandlers';
 import { isValidRemoteValue } from '../components/utils/validation';
 import { parseUrlParameters } from '../utils/urlParams';
 import { usePackOptions } from './usePackOptions';
 import { useTurnstile } from './useTurnstile';
+
+// Delay between the user's last interaction and when we kick off the
+// background Turnstile pre-mint. Short enough that the token is usually
+// ready by the time the user reaches for the Pack button, long enough that
+// rapid typing or a quick mode-switch doesn't trigger multiple mints.
+const PRE_MINT_DEBOUNCE_MS = 500;
 
 export type InputMode = 'url' | 'file' | 'folder';
 
@@ -20,6 +26,12 @@ export function usePackRequest() {
   const inputRepositoryUrl = ref('');
   const mode = ref<InputMode>('url');
   const uploadedFile = ref<File | null>(null);
+  // True once the user has interacted with the form (typed/pasted a URL,
+  // uploaded a file/folder, or switched modes). Used to gate the Turnstile
+  // pre-mint so URL-parameter hydration (e.g. `?repo=...`), browser form
+  // restoration, or autofill don't trigger background challenges. Resets
+  // back to false would defeat the gate, so it is set-only.
+  const userTouched = ref(false);
 
   // Request states
   const loading = ref(false);
@@ -49,11 +61,42 @@ export function usePackRequest() {
 
   function setMode(newMode: InputMode) {
     mode.value = newMode;
+    // Mode tab clicks are unambiguous user interactions, so they're a safe
+    // intent signal even before any input has been entered.
+    userTouched.value = true;
   }
 
   function handleFileUpload(file: File) {
     uploadedFile.value = file;
+    userTouched.value = true;
   }
+
+  // Wired to DOM-level input events (paste / IME / drop / typing) by
+  // TryItUrlInput. Watching `inputUrl` directly would also fire on URL-
+  // parameter hydration in onMounted(), which is exactly the case we need
+  // to exclude.
+  function markUserTouched() {
+    userTouched.value = true;
+  }
+
+  // Background pre-mint trigger. Only fires when the form is actually
+  // submittable AND the user has interacted with it — so `?repo=` hydration
+  // and form restoration won't cause a wasted Cloudflare challenge.
+  // Debounced to avoid burning a token on every keystroke.
+  let preMintDebounceTimer: ReturnType<typeof setTimeout> | undefined;
+  watch(
+    [isSubmitValid, userTouched],
+    ([valid, touched]) => {
+      if (preMintDebounceTimer !== undefined) clearTimeout(preMintDebounceTimer);
+      if (!valid || !touched) return;
+      preMintDebounceTimer = setTimeout(() => {
+        turnstile.preMintToken().catch(() => {
+          /* errors surface on the actual submit path */
+        });
+      }, PRE_MINT_DEBOUNCE_MS);
+    },
+    { flush: 'post' },
+  );
 
   function resetRequest() {
     error.value = null;
@@ -110,10 +153,13 @@ export function usePackRequest() {
 
     let turnstileToken: string | undefined;
     try {
-      // Pass the controller signal so cancelling the pack request also
-      // aborts an in-flight Turnstile challenge — otherwise a hung widget
-      // would delay the cancel response by up to 15s.
-      turnstileToken = await turnstile.getToken(controller.signal);
+      // Prefer a cached token from the background pre-mint (kicked off when
+      // the form first became submittable). takeToken() consumes the cache
+      // synchronously and falls through to a fresh mint if there's no
+      // usable token. The controller signal aborts an in-flight challenge
+      // when the pack request is cancelled, so a hung widget can't delay
+      // the cancel response.
+      turnstileToken = await turnstile.takeToken(controller.signal);
     } catch (turnstileError) {
       console.warn('Turnstile token acquisition failed:', turnstileError);
       if (controller.signal.aborted) {
@@ -287,6 +333,7 @@ export function usePackRequest() {
     submitRequest,
     repackWithSelectedFiles,
     cancelRequest,
+    markUserTouched,
 
     // Turnstile widget container (Vue ref callback consumer)
     setTurnstileContainer: turnstile.setContainer,

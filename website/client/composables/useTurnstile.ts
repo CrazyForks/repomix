@@ -19,30 +19,49 @@ import { loadTurnstileScript, type TurnstileGlobal } from './useTurnstileScript'
 //   server, or set both to real values together.
 const FALLBACK_TEST_SITE_KEY = '1x00000000000000000000AA';
 
-// Upper bound on how long getToken() will wait for a callback. Cloudflare's
+// Upper bound on how long the widget callback can take. Cloudflare's
 // `timeout-callback` only fires for interactive challenges, so an invisible
 // widget that hangs (CDN stall, iframe never resolves) would otherwise leave
 // the caller's promise pending forever and freeze the loading spinner.
-const GET_TOKEN_TIMEOUT_MS = 15_000;
+const MINT_TIMEOUT_MS = 15_000;
+
+// Cached tokens are treated as expired before Cloudflare's hard 300s ceiling,
+// to leave a safety margin for clock skew and network round-trips. A user
+// who starts a pack just inside the window won't get a `timeout-or-duplicate`
+// from siteverify because they were 1 second from the cliff.
+const TOKEN_TTL_MS = 240_000;
+
+interface CachedToken {
+  token: string;
+  mintedAt: number;
+  consumed: boolean;
+}
 
 export function useTurnstile() {
   const widgetId = ref<string | null>(null);
   const containerEl = ref<HTMLElement | null>(null);
   const error = ref<string | null>(null);
 
-  // Resolved when the next render of the widget produces a token. Reassigned
-  // on each `getToken()` call so back-to-back submits don't share state.
+  // Resolved when the next widget callback produces a token. Reassigned on
+  // every mint so back-to-back submits don't share state.
   let pendingResolve: ((token: string) => void) | null = null;
   let pendingReject: ((error: Error) => void) | null = null;
-  // Monotonic generation counter. Each getToken() call captures a local copy
-  // and the timeout/callback closures verify it before mutating shared state.
-  // This neutralises three otherwise-leaky scenarios:
-  //  - a stale timeout from a previous call clearing the next call's pending
+  // Monotonic generation counter. Each mintToken() call captures a local
+  // copy and the timeout/callback closures verify it before mutating shared
+  // state. This neutralises three otherwise-leaky scenarios:
+  //  - a stale timeout from a previous mint clearing the next call's pending
   //    handlers,
-  //  - a delayed widget callback resolving the next call with a stale token,
-  //  - a back-to-back submit reusing handlers before the previous timeout
-  //    has fired.
+  //  - a delayed widget callback resolving a later request with a stale
+  //    token,
+  //  - back-to-back mints reusing handlers before the previous timeout has
+  //    fired.
   let currentGen = 0;
+
+  // Pre-mint cache. `mintPromise` is the in-flight challenge; `cachedToken`
+  // is the resolved token waiting to be consumed. Both clear on consumption,
+  // expiry, error, and component unmount.
+  let mintPromise: Promise<string> | null = null;
+  let cachedToken: CachedToken | null = null;
 
   // Site key resolution. The production-only safety net lives in
   // `.vitepress/config.ts` (it throws at build time when the Cloudflare Pages
@@ -59,12 +78,11 @@ export function useTurnstile() {
   // somehow shipped the test sitekey would still 403 every pack.
   const siteKey = import.meta.env.VITE_TURNSTILE_SITE_KEY ?? FALLBACK_TEST_SITE_KEY;
 
-  // Single-flight cache for the in-flight ensureWidget promise. With pack
-  // pre-warm now restricted to `loadTurnstileScript()`, only back-to-back
-  // `getToken()` calls can race here — but two concurrent submits would
-  // still both pass the `widgetId.value` null check after the awaited
-  // script load resolves and call `turnstile.render()` twice, leaking the
-  // first widget id (onBeforeUnmount can only remove the surviving one).
+  // Single-flight cache for the in-flight ensureWidget promise. Shared by
+  // every code path that needs the widget (preMintToken, click-time mint),
+  // so concurrent calls can't both pass the `widgetId.value` null check
+  // after `await loadTurnstileScript()` resolves and call `turnstile.render()`
+  // twice — the first widget id would be overwritten and leak.
   let ensureWidgetPromise: Promise<TurnstileGlobal> | null = null;
 
   async function ensureWidget(el: HTMLElement): Promise<TurnstileGlobal> {
@@ -83,12 +101,6 @@ export function useTurnstile() {
           sitekey: siteKey,
           size: 'invisible',
           action: 'pack',
-          // Defer the actual challenge until execute() is called below.
-          // Caveat per PR #1541: render() itself still inflates the
-          // Cloudflare dashboard's challenge counters even with this
-          // option, which is why `setContainer()` no longer pre-warms by
-          // calling render(). We still pass `execute` here so render() at
-          // least doesn't auto-mint a token before getToken() is ready.
           execution: 'execute',
           callback: (token: string) => {
             if (pendingResolve) {
@@ -107,8 +119,10 @@ export function useTurnstile() {
             }
           },
           'expired-callback': () => {
-            // Token expired before being used. The widget will issue a fresh
-            // one on the next execute() call.
+            // Token expired before being used. Drop the cache so the next
+            // takeToken() refreshes; the widget will issue a fresh token on
+            // the next execute() call.
+            cachedToken = null;
             if (widgetId.value) turnstile.reset(widgetId.value);
           },
           'timeout-callback': () => {
@@ -136,15 +150,12 @@ export function useTurnstile() {
     }
   }
 
-  // Ask the (invisible) widget for a fresh verification token. Each call
-  // resets the widget first because Turnstile tokens are 1-shot.
-  //
-  // The optional `signal` lets the caller (usePackRequest's submit flow)
-  // abort the challenge mid-flight when the user cancels — without it, a
-  // hung Turnstile iframe would block the cancel response for up to
-  // GET_TOKEN_TIMEOUT_MS even though the surrounding pack request was
-  // already aborted.
-  async function getToken(signal?: AbortSignal): Promise<string> {
+  // Run the widget challenge and return a fresh token. Internal primitive
+  // shared by preMintToken (background) and takeToken (click-path fallback).
+  // The optional `signal` aborts the challenge mid-flight when the surrounding
+  // pack request is cancelled — without it, a hung Turnstile iframe would
+  // block the cancel response for up to MINT_TIMEOUT_MS.
+  async function mintToken(signal?: AbortSignal): Promise<string> {
     error.value = null;
     const checkAborted = () => {
       if (signal?.aborted) throw new Error('Turnstile challenge aborted');
@@ -155,9 +166,7 @@ export function useTurnstile() {
     }
     // Race the script-load step against the caller's abort signal so a
     // user-initiated cancel during a slow script load (CDN stall, ad
-    // blocker, network blip) doesn't have to wait for the surrounding 30s
-    // pack timeout. The signal is also re-checked before listener setup
-    // below to cover the race where the abort fired during the await.
+    // blocker, network blip) doesn't have to wait for MINT_TIMEOUT_MS.
     const widgetPromise = ensureWidget(containerEl.value);
     const turnstile = signal
       ? await Promise.race([
@@ -206,8 +215,8 @@ export function useTurnstile() {
         pendingReject = null;
         reject(err);
       };
-      // The widget retains its previous token until reset(); explicit reset
-      // forces a new challenge on every getToken() call.
+      // Tokens are 1-shot, so reset() before each execute() to clear any
+      // stale challenge state inside the widget itself.
       if (widgetId.value) turnstile.reset(widgetId.value);
       if (widgetId.value) turnstile.execute(widgetId.value);
     });
@@ -219,9 +228,6 @@ export function useTurnstile() {
       signal.addEventListener('abort', onAbort, { once: true });
     }
 
-    // Bounded race against a hung widget. The gen check ensures a stale timer
-    // from a previous call (whose tokenPromise already resolved) cannot clear
-    // the current request's handlers.
     const timeoutPromise = new Promise<never>((_, reject) => {
       timeoutId = setTimeout(() => {
         if (myGen !== currentGen) return;
@@ -229,32 +235,94 @@ export function useTurnstile() {
         pendingResolve = null;
         pendingReject = null;
         reject(new Error('Turnstile challenge timed out'));
-      }, GET_TOKEN_TIMEOUT_MS);
+      }, MINT_TIMEOUT_MS);
     });
     return Promise.race([tokenPromise, timeoutPromise]);
   }
 
+  // Background pre-mint: kicks off a challenge and stashes the resulting
+  // token for the next takeToken() to consume synchronously. Caller-supplied
+  // signals from the submit flow are deliberately *not* threaded here —
+  // pre-mint runs in the background of the form, divorced from any single
+  // pack lifecycle.
+  //
+  // Idempotent across repeat calls: if a mint is already in flight, return
+  // the existing promise; if a fresh token is already cached, no-op.
+  function preMintToken(): Promise<string> {
+    if (cachedToken && !cachedToken.consumed && !isExpired(cachedToken)) {
+      return Promise.resolve(cachedToken.token);
+    }
+    if (mintPromise) return mintPromise;
+    mintPromise = mintToken()
+      .then((token) => {
+        cachedToken = { token, mintedAt: Date.now(), consumed: false };
+        return token;
+      })
+      .catch((err) => {
+        // Don't cache failures — let the next takeToken/preMintToken retry.
+        cachedToken = null;
+        throw err;
+      })
+      .finally(() => {
+        mintPromise = null;
+      });
+    // Swallow rejections at the boundary so an unawaited preMintToken() (the
+    // common case) doesn't trigger an unhandled rejection in the console.
+    mintPromise.catch(() => {
+      /* surfaces on the actual submit path via takeToken */
+    });
+    return mintPromise;
+  }
+
+  // Drop any cached token without minting a new one. Called explicitly by
+  // usePackRequest after a token has been handed to a submit so the same
+  // token can never be reused, regardless of how the request resolved.
+  function invalidateCache(): void {
+    cachedToken = null;
+  }
+
+  function isExpired(entry: CachedToken): boolean {
+    return Date.now() - entry.mintedAt > TOKEN_TTL_MS;
+  }
+
+  // Acquire a token for an immediate /api/pack submission. Order of
+  // preference:
+  //   1. Fresh, unconsumed cache from a recent preMintToken() — instant.
+  //   2. Currently-in-flight pre-mint — await the same promise; no
+  //      additional execute() call.
+  //   3. Cold path — mint synchronously with the supplied abort signal.
+  //
+  // The returned token is marked consumed before this function returns, so
+  // double-clicks can't replay the same token (Cloudflare siteverify would
+  // reject it as `timeout-or-duplicate` anyway, but consuming on the client
+  // side avoids the wasted server round-trip).
+  async function takeToken(signal?: AbortSignal): Promise<string> {
+    if (cachedToken && !cachedToken.consumed && !isExpired(cachedToken)) {
+      const token = cachedToken.token;
+      cachedToken = null;
+      return token;
+    }
+    if (mintPromise) {
+      const token = await mintPromise;
+      // The pre-mint that filled the cache may have been consumed by a
+      // concurrent caller; drop our copy regardless and return the awaited
+      // token to this submit. Clearing the cache here prevents the same
+      // token from being handed out twice.
+      cachedToken = null;
+      return token;
+    }
+    return mintToken(signal);
+  }
+
   function setContainer(el: HTMLElement | null) {
     containerEl.value = el;
-    // Pre-warm scope: ONLY load the Turnstile script, do NOT render the
-    // widget here. Production telemetry showed that calling
-    // `turnstile.render()` at form-mount time inflated the Cloudflare
-    // dashboard's "challenge issued / solved" counters far beyond the GA
-    // pack_start volume — every visitor (humans, crawlers, ad-blocker
-    // failures) was being counted into Turnstile analytics even though the
-    // widget was configured with `execution: 'execute'`. The docs say
-    // render() shouldn't fire a challenge in that mode, but the analytics
-    // disagree, so we no longer trust render() to be side-effect free at
-    // mount time. Render is now deferred to the first `getToken()` call.
-    //
-    // Errors are intentionally swallowed: a failed pre-warm doesn't block
-    // page rendering, and the same `loadTurnstileScript` path will retry
-    // (with full error propagation) when `getToken()` is eventually called.
-    if (el) {
-      loadTurnstileScript().catch(() => {
-        // pre-warm failures surface on the actual submit path
-      });
-    }
+    // Intentionally do NOT pre-warm the script here. Production telemetry
+    // (PR #1541 follow-up) showed that simply loading api.js inflates the
+    // Cloudflare dashboard's "challenge issued" counter to roughly the
+    // page-view count, regardless of whether `render()` is ever called.
+    // Pre-warm now happens only when usePackRequest sees a real intent
+    // signal (valid input + user interaction), which gates both the script
+    // load and the challenge to visitors who actually plan to submit.
   }
 
   onBeforeUnmount(() => {
@@ -264,14 +332,15 @@ export function useTurnstile() {
     // the form was unmounted and bind a new widget to a detached DOM node
     // with no remove() left to clean it up.
     containerEl.value = null;
-    // Reject any in-flight getToken() promise so the awaiting caller doesn't
-    // hang forever after the form unmounts (e.g. user navigates away mid-
-    // challenge).
+    // Reject any in-flight mint so the awaiting caller doesn't hang forever
+    // after the form unmounts (e.g. user navigates away mid-challenge).
     if (pendingReject) {
       pendingReject(new Error('Turnstile widget unmounted'));
       pendingResolve = null;
       pendingReject = null;
     }
+    cachedToken = null;
+    mintPromise = null;
     if (widgetId.value && window.turnstile) {
       window.turnstile.remove(widgetId.value);
       widgetId.value = null;
@@ -280,7 +349,9 @@ export function useTurnstile() {
 
   return {
     setContainer,
-    getToken,
+    preMintToken,
+    takeToken,
+    invalidateCache,
     error,
   };
 }

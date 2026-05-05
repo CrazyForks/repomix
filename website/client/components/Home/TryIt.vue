@@ -45,6 +45,7 @@
             :loading="loading"
             @keydown="handleKeydown"
             @submit="handleSubmit"
+            @user-input="markUserTouched"
             :show-button="false"
           />
         </div>
@@ -157,6 +158,7 @@ const {
   resetOptions,
   cancelRequest,
   setTurnstileContainer,
+  markUserTouched,
 } = usePackRequest();
 
 // Wire the template ref into useTurnstile so the widget renders into the

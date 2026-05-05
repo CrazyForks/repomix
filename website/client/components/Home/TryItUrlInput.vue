@@ -15,6 +15,11 @@ const emit = defineEmits<{
   submit: [];
   keydown: [event: KeyboardEvent];
   cancel: [];
+  // Emitted on real DOM input — typing, paste, IME compose end, datalist
+  // selection. Used by usePackRequest to gate the Turnstile pre-mint so
+  // URL-parameter hydration / form restoration don't trigger background
+  // challenges.
+  userInput: [];
 }>();
 
 const isValidUrl = computed(() => {
@@ -68,6 +73,7 @@ function saveUrlToHistory(url: string) {
 function handleUrlInput(event: Event) {
   const input = event.target as HTMLInputElement;
   emit('update:url', input.value);
+  emit('userInput');
 }
 
 // Process and save valid URL
