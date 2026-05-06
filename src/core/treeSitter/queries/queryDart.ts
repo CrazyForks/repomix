@@ -74,5 +74,6 @@ export const queryDart = `
 
 ; Redirecting factory constructor (e.g. 'factory Foo.copy(other) = Bar;', 'const factory Foo() = Bar;')
 ; Always a direct child of 'declaration', never wrapped in method_signature.
-(redirecting_factory_constructor_signature) @name.definition.method @definition.method
+(declaration
+ (redirecting_factory_constructor_signature) @name.definition.method) @definition.method
 `;
