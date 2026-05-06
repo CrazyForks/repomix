@@ -35,6 +35,19 @@ both metrics. Those reject reasons still appear in the existing
 `pack_requests` metric (under `outcome=turnstile_failed`) for
 operational counting, just not in the latency distribution.
 
+The metric filter pins `service_name="repomix-server-us"`, so requests
+served from any future region (`-eu`, `-asia`) silently drop out of the
+distribution until either the filter is broadened or per-region
+counterparts are applied. Surface this in the migration plan when
+adding the next region.
+
+To verify a YAML edit was actually applied to the live metric (gcloud
+update is silent on no-op vs effective change):
+
+```bash
+gcloud logging metrics describe turnstile_siteverify_duration --project=repomix
+```
+
 ## Apply the dashboard
 
 ```bash

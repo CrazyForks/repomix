@@ -158,9 +158,11 @@ export function usePackRequest() {
       if (isCurrent()) {
         loading.value = false;
         requestController = null;
-        // Clear progressStage so a subsequent submit's brief verifying
-        // window doesn't pick up the previous run's stale state.
+        // Clear progressStage and progressMessage so a subsequent submit's
+        // brief verifying window doesn't pick up the previous run's stale
+        // state. Mirrors the initialization at the top of submitRequest.
         progressStage.value = null;
+        progressMessage.value = null;
         error.value = abortMessage(tokenResult.reason);
         errorType.value = 'warning';
       }
@@ -172,6 +174,7 @@ export function usePackRequest() {
         loading.value = false;
         requestController = null;
         progressStage.value = null;
+        progressMessage.value = null;
         error.value = tokenResult.message;
         errorType.value = 'error';
       }
