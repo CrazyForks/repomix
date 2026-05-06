@@ -22,7 +22,7 @@ export const queryDart = `
 
 ; Extension declaration
 (extension_declaration
-  name: (identifier) @name.definition.class) @definition.class
+  name: (identifier) @name.definition.extension) @definition.extension
 
 ; Typedef / type alias
 ; type_alias has no named field; the type_identifier (not identifier) is the alias name
