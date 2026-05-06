@@ -400,6 +400,163 @@ describe('turnstileMiddleware', () => {
 
     expect(res.status).toBe(403);
   });
+
+  // The latency distribution metric in `monitoring/metrics/turnstile_siteverify_duration.yaml`
+  // filters log entries on `jsonPayload.siteverifyDurationMs` field presence, so a refactor
+  // that drops the field on any post-siteverify branch silently breaks the metric without
+  // any other test failing. Lock the contract: every branch that called siteverify must
+  // attach `siteverifyDurationMs` to its log.
+  describe('siteverifyDurationMs is attached to every post-siteverify log', () => {
+    test('success path emits logInfo with siteverifyDurationMs and event=turnstile_siteverify', async () => {
+      const logInfoSpy = vi.spyOn(logger, 'logInfo').mockImplementation(() => {});
+      try {
+        const fetchMock = vi.fn().mockResolvedValue(okResponse({ success: true, action: 'pack' }));
+        const middleware = turnstileMiddleware({
+          fetch: fetchMock,
+          getSecret: () => SECRET,
+          isProduction: () => false,
+        });
+        const app = buildApp({ middleware });
+
+        const res = await app.request('/api/pack', {
+          method: 'POST',
+          headers: { 'X-Turnstile-Token': 'good-token' },
+        });
+
+        expect(res.status).toBe(200);
+        const successCall = logInfoSpy.mock.calls.find(
+          (call) => (call[1] as Record<string, unknown> | undefined)?.event === 'turnstile_siteverify',
+        );
+        expect(successCall).toBeDefined();
+        // biome-ignore lint/style/noNonNullAssertion: guarded by toBeDefined above
+        const payload = successCall![1] as Record<string, unknown>;
+        expect(payload.outcome).toBe('success');
+        expect(payload.siteverifyDurationMs).toEqual(expect.any(Number));
+      } finally {
+        logInfoSpy.mockRestore();
+      }
+    });
+
+    test('siteverify_rejected reject carries siteverifyDurationMs', async () => {
+      const logInfoSpy = vi.spyOn(logger, 'logInfo').mockImplementation(() => {});
+      try {
+        const fetchMock = vi
+          .fn()
+          .mockResolvedValue(okResponse({ success: false, 'error-codes': ['invalid-input-response'] }));
+        const middleware = turnstileMiddleware({
+          fetch: fetchMock,
+          getSecret: () => SECRET,
+          isProduction: () => false,
+        });
+        const app = buildApp({ middleware });
+
+        const res = await app.request('/api/pack', {
+          method: 'POST',
+          headers: { 'X-Turnstile-Token': 'bad-token' },
+        });
+
+        expect(res.status).toBe(403);
+        const rejectCall = logInfoSpy.mock.calls.find(
+          (call) => (call[1] as Record<string, unknown> | undefined)?.reason === 'siteverify_rejected',
+        );
+        expect(rejectCall).toBeDefined();
+        // biome-ignore lint/style/noNonNullAssertion: guarded by toBeDefined above
+        const rejectPayload = rejectCall![1] as Record<string, unknown>;
+        expect(rejectPayload.siteverifyDurationMs).toEqual(expect.any(Number));
+      } finally {
+        logInfoSpy.mockRestore();
+      }
+    });
+
+    test('action_mismatch reject carries siteverifyDurationMs', async () => {
+      const logInfoSpy = vi.spyOn(logger, 'logInfo').mockImplementation(() => {});
+      try {
+        const fetchMock = vi.fn().mockResolvedValue(okResponse({ success: true, action: 'login' }));
+        const middleware = turnstileMiddleware({
+          fetch: fetchMock,
+          getSecret: () => SECRET,
+          isProduction: () => false,
+        });
+        const app = buildApp({ middleware });
+
+        const res = await app.request('/api/pack', {
+          method: 'POST',
+          headers: { 'X-Turnstile-Token': 'wrong-action-token' },
+        });
+
+        expect(res.status).toBe(403);
+        const rejectCall = logInfoSpy.mock.calls.find(
+          (call) => (call[1] as Record<string, unknown> | undefined)?.reason === 'action_mismatch',
+        );
+        expect(rejectCall).toBeDefined();
+        // biome-ignore lint/style/noNonNullAssertion: guarded by toBeDefined above
+        const rejectPayload = rejectCall![1] as Record<string, unknown>;
+        expect(rejectPayload.siteverifyDurationMs).toEqual(expect.any(Number));
+      } finally {
+        logInfoSpy.mockRestore();
+      }
+    });
+
+    test('hostname_mismatch reject carries siteverifyDurationMs', async () => {
+      const logInfoSpy = vi.spyOn(logger, 'logInfo').mockImplementation(() => {});
+      try {
+        const fetchMock = vi
+          .fn()
+          .mockResolvedValue(okResponse({ success: true, action: 'pack', hostname: 'evil.example.com' }));
+        const middleware = turnstileMiddleware({
+          fetch: fetchMock,
+          getSecret: () => SECRET,
+          isProduction: () => false,
+        });
+        const app = buildApp({ middleware });
+
+        const res = await app.request('/api/pack', {
+          method: 'POST',
+          headers: { 'X-Turnstile-Token': 'leaked-sitekey-token' },
+        });
+
+        expect(res.status).toBe(403);
+        const rejectCall = logInfoSpy.mock.calls.find(
+          (call) => (call[1] as Record<string, unknown> | undefined)?.reason === 'hostname_mismatch',
+        );
+        expect(rejectCall).toBeDefined();
+        // biome-ignore lint/style/noNonNullAssertion: guarded by toBeDefined above
+        const rejectPayload = rejectCall![1] as Record<string, unknown>;
+        expect(rejectPayload.siteverifyDurationMs).toEqual(expect.any(Number));
+      } finally {
+        logInfoSpy.mockRestore();
+      }
+    });
+
+    test('siteverify_unavailable reject carries siteverifyDurationMs (warn-level)', async () => {
+      const logWarningSpy = vi.spyOn(logger, 'logWarning').mockImplementation(() => {});
+      try {
+        const fetchMock = vi.fn().mockRejectedValue(new Error('network'));
+        const middleware = turnstileMiddleware({
+          fetch: fetchMock,
+          getSecret: () => SECRET,
+          isProduction: () => false,
+        });
+        const app = buildApp({ middleware });
+
+        const res = await app.request('/api/pack', {
+          method: 'POST',
+          headers: { 'X-Turnstile-Token': 'token' },
+        });
+
+        expect(res.status).toBe(403);
+        const rejectCall = logWarningSpy.mock.calls.find(
+          (call) => (call[1] as Record<string, unknown> | undefined)?.reason === 'siteverify_unavailable',
+        );
+        expect(rejectCall).toBeDefined();
+        // biome-ignore lint/style/noNonNullAssertion: guarded by toBeDefined above
+        const rejectPayload = rejectCall![1] as Record<string, unknown>;
+        expect(rejectPayload.siteverifyDurationMs).toEqual(expect.any(Number));
+      } finally {
+        logWarningSpy.mockRestore();
+      }
+    });
+  });
 });
 
 // Cross-stack contract: the EXPECTED_TURNSTILE_ACTION on the server must

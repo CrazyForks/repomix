@@ -126,15 +126,36 @@ export function turnstileMiddleware(deps: TurnstileDeps = defaultDeps) {
       });
     }
 
+    // Time the siteverify round-trip and attach `siteverifyDurationMs` to
+    // every outcome (success + four reject branches below). The Cloud
+    // Monitoring metrics in `monitoring/metrics/` filter on the field's
+    // presence, not on `event=`, so success and failure paths are captured
+    // uniformly without conflating with the `pack_completed` lifecycle
+    // metric. Pre-network rejections (`secret_missing`, `missing_token`,
+    // `token_too_long`) intentionally lack the field — they short-circuit
+    // before the timer starts.
+    const siteverifyStart = Date.now();
     const verifyResult = await runSiteverify(deps, secret, token, clientInfo);
+    const siteverifyDurationMs = Date.now() - siteverifyStart;
+
+    // Wrap rejectAndLog so every post-siteverify branch automatically
+    // carries the duration. Without this, a fifth reject reason added
+    // later would silently drop out of the latency distribution.
+    const rejectWithDuration = (
+      reason: string,
+      logMessage: string,
+      level: 'info' | 'warn' = 'info',
+      extra?: Record<string, unknown>,
+    ) => rejectAndLog(reason, logMessage, level, { ...extra, siteverifyDurationMs });
+
     if (verifyResult instanceof Error) {
-      return rejectAndLog('siteverify_unavailable', 'Turnstile siteverify network failure', 'warn', {
+      return rejectWithDuration('siteverify_unavailable', 'Turnstile siteverify network failure', 'warn', {
         error: verifyResult.message,
       });
     }
 
     if (!verifyResult?.success) {
-      return rejectAndLog('siteverify_rejected', 'Turnstile verification rejected', 'info', {
+      return rejectWithDuration('siteverify_rejected', 'Turnstile verification rejected', 'info', {
         errorCodes: verifyResult?.['error-codes'],
       });
     }
@@ -145,7 +166,7 @@ export function turnstileMiddleware(deps: TurnstileDeps = defaultDeps) {
     // backward-compat fallback for older client builds. The strict check kicks
     // in once the client started sending an action.
     if (verifyResult.action !== undefined && verifyResult.action !== EXPECTED_TURNSTILE_ACTION) {
-      return rejectAndLog('action_mismatch', 'Turnstile verification rejected: action mismatch', 'info', {
+      return rejectWithDuration('action_mismatch', 'Turnstile verification rejected: action mismatch', 'info', {
         action: verifyResult.action,
       });
     }
@@ -154,10 +175,24 @@ export function turnstileMiddleware(deps: TurnstileDeps = defaultDeps) {
     // an attacker-controlled origin. Test sitekeys omit hostname, so allow
     // undefined for backward-compat (same pattern as the action check).
     if (verifyResult.hostname !== undefined && !ALLOWED_HOSTNAMES.includes(verifyResult.hostname)) {
-      return rejectAndLog('hostname_mismatch', 'Turnstile verification rejected: hostname mismatch', 'info', {
+      return rejectWithDuration('hostname_mismatch', 'Turnstile verification rejected: hostname mismatch', 'info', {
         hostname: verifyResult.hostname,
       });
     }
+
+    // Success path emits a parallel info log with `event: 'turnstile_siteverify'`
+    // so the metric (filtered on `siteverifyDurationMs` field presence — see
+    // monitoring/README.md) captures success alongside the failure paths
+    // logged via rejectAndLog. The dedicated event name keeps successful
+    // siteverify out of the `pack_completed` lifecycle metric.
+    logInfo('Turnstile siteverify success', {
+      event: 'turnstile_siteverify',
+      outcome: 'success',
+      siteverifyDurationMs,
+      requestId,
+      source: clientInfo.source,
+      ...(cf && { cf }),
+    });
 
     await next();
   };
