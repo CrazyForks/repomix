@@ -129,7 +129,11 @@ export function usePackRequest() {
     errorType.value = 'error';
     result.value = null;
     hasExecuted.value = true;
-    progressStage.value = null;
+    // Show a meaningful loading step while the server runs Turnstile
+    // siteverify (typically 100-1000ms before the first SSE 'cache-check'
+    // event arrives). The first onProgress callback from handlePackRequest
+    // overwrites this with the real server-reported stage.
+    progressStage.value = 'verifying';
     progressMessage.value = null;
     inputRepositoryUrl.value = inputUrl.value;
 

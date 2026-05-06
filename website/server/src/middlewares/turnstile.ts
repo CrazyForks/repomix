@@ -126,16 +126,26 @@ export function turnstileMiddleware(deps: TurnstileDeps = defaultDeps) {
       });
     }
 
+    // Time the siteverify round-trip so Cloud Monitoring can chart p50/p95/p99
+    // latency. The cost is one log line per request, which is well within
+    // Cloud Logging's free tier on Repomix's traffic. All reject branches
+    // include `siteverifyDurationMs` so the distribution metric covers
+    // success, network failure, and rejected outcomes uniformly.
+    const siteverifyStart = Date.now();
     const verifyResult = await runSiteverify(deps, secret, token, clientInfo);
+    const siteverifyDurationMs = Date.now() - siteverifyStart;
+
     if (verifyResult instanceof Error) {
       return rejectAndLog('siteverify_unavailable', 'Turnstile siteverify network failure', 'warn', {
         error: verifyResult.message,
+        siteverifyDurationMs,
       });
     }
 
     if (!verifyResult?.success) {
       return rejectAndLog('siteverify_rejected', 'Turnstile verification rejected', 'info', {
         errorCodes: verifyResult?.['error-codes'],
+        siteverifyDurationMs,
       });
     }
 
@@ -147,6 +157,7 @@ export function turnstileMiddleware(deps: TurnstileDeps = defaultDeps) {
     if (verifyResult.action !== undefined && verifyResult.action !== EXPECTED_TURNSTILE_ACTION) {
       return rejectAndLog('action_mismatch', 'Turnstile verification rejected: action mismatch', 'info', {
         action: verifyResult.action,
+        siteverifyDurationMs,
       });
     }
 
@@ -156,8 +167,23 @@ export function turnstileMiddleware(deps: TurnstileDeps = defaultDeps) {
     if (verifyResult.hostname !== undefined && !ALLOWED_HOSTNAMES.includes(verifyResult.hostname)) {
       return rejectAndLog('hostname_mismatch', 'Turnstile verification rejected: hostname mismatch', 'info', {
         hostname: verifyResult.hostname,
+        siteverifyDurationMs,
       });
     }
+
+    // Success path: emit a structured event log so Cloud Monitoring can
+    // build a log-based distribution metric on `siteverifyDurationMs`,
+    // filtered by `event=turnstile_siteverify` and `outcome=success`.
+    // Used to validate the latency hypothesis flagged in PR #1544 and to
+    // alert on regressions during Cloudflare incidents.
+    logInfo('Turnstile siteverify success', {
+      event: 'turnstile_siteverify',
+      outcome: 'success',
+      siteverifyDurationMs,
+      requestId,
+      source: clientInfo.source,
+      ...(cf && { cf }),
+    });
 
     await next();
   };

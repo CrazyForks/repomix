@@ -60,7 +60,18 @@ export class ApiError extends Error {
   }
 }
 
-export type PackProgressStage = 'cache-check' | 'cloning' | 'repository-fetch' | 'extracting' | 'processing';
+// `verifying` is a client-only synthetic stage shown while the server is
+// running Turnstile siteverify (before any SSE event arrives). The server
+// never sends this stage; usePackRequest sets it locally between
+// `takeToken()` returning and the first onProgress callback firing, so
+// the loading UI displays a meaningful step instead of a generic "...".
+export type PackProgressStage =
+  | 'verifying'
+  | 'cache-check'
+  | 'cloning'
+  | 'repository-fetch'
+  | 'extracting'
+  | 'processing';
 
 export interface PackStreamCallbacks {
   onProgress?: (stage: PackProgressStage, message?: string) => void;

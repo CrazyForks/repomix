@@ -10,6 +10,7 @@ interface Props {
 const props = defineProps<Props>();
 
 const stageMessages: Record<PackProgressStage, string> = {
+  verifying: 'Verifying request...',
   'cache-check': 'Checking cache...',
   cloning: 'Cloning repository...',
   'repository-fetch': 'Fetching repository...',
