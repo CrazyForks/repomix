@@ -134,4 +134,154 @@ describe('parseFile for Dart', () => {
       expect(result).toContain(expectContent);
     }
   });
+
+  test('should parse Dart mixin, typedef, getter, setter, and factory', async () => {
+    const fileContent = `
+      /// JSON map alias
+      typedef Json = Map<String, dynamic>;
+
+      /// Walker mixin
+      mixin Walker on Animal {
+        /// Walk action
+        void walk() {
+          print('walking');
+        }
+      }
+
+      /// Animal base class
+      class Animal {
+        final String _name;
+
+        Animal(this._name);
+
+        /// Animal name getter
+        String get name => _name;
+
+        /// Animal name setter
+        set nickname(String value) {
+          print('nickname is $value');
+        }
+
+        /// Factory constructor
+        factory Animal.guest() {
+          return Animal('Guest');
+        }
+
+        /// Redirecting factory
+        factory Animal.copy(Animal other) = Animal;
+      }
+    `;
+    const filePath = 'dummy.dart';
+    const config = {};
+    const result = await parseFile(fileContent, filePath, createMockConfig(config));
+    expect(typeof result).toBe('string');
+
+    const expectContents = [
+      '/// JSON map alias',
+      'typedef Json = Map<String, dynamic>;',
+      '/// Walker mixin',
+      'mixin Walker on Animal {',
+      '/// Walk action',
+      'void walk() {',
+      '/// Animal name getter',
+      'String get name => _name;',
+      '/// Animal name setter',
+      'set nickname(String value) {',
+      '/// Factory constructor',
+      'factory Animal.guest() {',
+      '/// Redirecting factory',
+      'factory Animal.copy(Animal other) = Animal;',
+    ];
+
+    for (const expectContent of expectContents) {
+      expect(result).toContain(expectContent);
+    }
+  });
+
+  test('should parse Dart plain constructor and operator overloads', async () => {
+    const fileContent = `
+      /// Vector class with operators
+      class Vector {
+        final double x;
+        final double y;
+
+        /// Plain constructor
+        Vector(this.x, this.y);
+
+        /// Plus operator
+        Vector operator +(Vector other) => Vector(x + other.x, y + other.y);
+
+        /// Index operator
+        double operator [](int i) => i == 0 ? x : y;
+
+        /// Index assignment operator
+        void operator []=(int i, double v) {}
+
+        /// Equality operator
+        bool operator ==(Object other) => other is Vector && x == other.x && y == other.y;
+      }
+    `;
+    const filePath = 'dummy.dart';
+    const config = {};
+    const result = await parseFile(fileContent, filePath, createMockConfig(config));
+    expect(typeof result).toBe('string');
+
+    const expectContents = [
+      '/// Plain constructor',
+      'Vector(this.x, this.y);',
+      '/// Plus operator',
+      'Vector operator +(Vector other) => Vector(x + other.x, y + other.y);',
+      '/// Index operator',
+      'double operator [](int i) => i == 0 ? x : y;',
+      '/// Index assignment operator',
+      'void operator []=(int i, double v) {}',
+      '/// Equality operator',
+      'bool operator ==(Object other) => other is Vector && x == other.x && y == other.y;',
+    ];
+
+    for (const expectContent of expectContents) {
+      expect(result).toContain(expectContent);
+    }
+  });
+
+  test('should parse Dart const and external constructors', async () => {
+    const fileContent = `
+      /// Point with const constructors
+      class Point {
+        final int x;
+        final int y;
+
+        /// Const plain constructor
+        const Point(this.x, this.y);
+
+        /// Const named constructor
+        const Point.zero() : x = 0, y = 0;
+
+        /// Const redirecting factory
+        const factory Point.alias() = Point.zero;
+
+        /// External factory
+        external factory Point.native();
+      }
+    `;
+    const filePath = 'dummy.dart';
+    const config = {};
+    const result = await parseFile(fileContent, filePath, createMockConfig(config));
+    expect(typeof result).toBe('string');
+
+    const expectContents = [
+      '/// Const plain constructor',
+      'const Point(this.x, this.y);',
+      '/// Const named constructor',
+      'const Point.zero() : x = 0, y = 0;',
+      '/// Const redirecting factory',
+      'const factory Point.alias() = Point.zero;',
+      '/// External factory',
+      'external factory Point.native();',
+    ];
+
+    for (const expectContent of expectContents) {
+      expect(result).toContain(expectContent);
+    }
+  });
 });
