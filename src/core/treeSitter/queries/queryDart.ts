@@ -41,15 +41,20 @@ export const queryDart = `
   name: (identifier) @name.definition.method) @definition.method
 
 ; Constructor declaration
-; Plain constructors (e.g. 'Animal(this.name);') sit directly under 'declaration',
-; not wrapped by 'method_signature' — so query both shapes.
+; constructor_signature can be wrapped in method_signature (when followed by a body)
+; or sit directly under 'declaration' (e.g., bare 'Foo(this.x);').
+; Capturing the whole signature node emits its source line(s) regardless of inner
+; shape, which also keeps the queries robust across grammar tweaks.
 (method_signature
- (constructor_signature
-  name: (identifier) @name.definition.method)) @definition.method
+ (constructor_signature) @name.definition.method) @definition.method
 
 (declaration
- (constructor_signature
-  name: (identifier) @name.definition.method)) @definition.method
+ (constructor_signature) @name.definition.method) @definition.method
+
+; Constant constructor (e.g. 'const Animal(this.name);', 'const Animal.zero() : ...;')
+; constant_constructor_signature is a direct child of 'declaration'.
+(declaration
+ (constant_constructor_signature) @name.definition.method) @definition.method
 
 ; Operator overload (e.g. 'int operator +(int o)', 'int operator [](int i)')
 ; operator_signature has no identifier name field — the operator token is a
@@ -59,15 +64,15 @@ export const queryDart = `
  (operator_signature) @name.definition.method) @definition.method
 
 ; Factory constructor
-; factory_constructor_signature contains dot-separated identifiers (e.g. Foo.from);
-; the leading-anchor \`.\` selects the class name only.
+; Wrapped in method_signature when it has a body, but bare under 'declaration' for
+; 'external factory ...;' and 'const factory ...;' — so query both shapes.
 (method_signature
- (factory_constructor_signature
-  . (identifier) @name.definition.method)) @definition.method
+ (factory_constructor_signature) @name.definition.method) @definition.method
 
-; Redirecting factory constructor (e.g. 'factory Foo.from(...) = Bar.named;')
-; redirecting_factory_constructor_signature is a direct child of 'declaration',
-; not wrapped by 'method_signature' — so query it bare.
-(redirecting_factory_constructor_signature
-  . (identifier) @name.definition.method) @definition.method
+(declaration
+ (factory_constructor_signature) @name.definition.method) @definition.method
+
+; Redirecting factory constructor (e.g. 'factory Foo.copy(other) = Bar;', 'const factory Foo() = Bar;')
+; Always a direct child of 'declaration', never wrapped in method_signature.
+(redirecting_factory_constructor_signature) @name.definition.method @definition.method
 `;

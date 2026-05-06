@@ -243,4 +243,45 @@ describe('parseFile for Dart', () => {
       expect(result).toContain(expectContent);
     }
   });
+
+  test('should parse Dart const and external constructors', async () => {
+    const fileContent = `
+      /// Point with const constructors
+      class Point {
+        final int x;
+        final int y;
+
+        /// Const plain constructor
+        const Point(this.x, this.y);
+
+        /// Const named constructor
+        const Point.zero() : x = 0, y = 0;
+
+        /// Const redirecting factory
+        const factory Point.alias() = Point.zero;
+
+        /// External factory
+        external factory Point.native();
+      }
+    `;
+    const filePath = 'dummy.dart';
+    const config = {};
+    const result = await parseFile(fileContent, filePath, createMockConfig(config));
+    expect(typeof result).toBe('string');
+
+    const expectContents = [
+      '/// Const plain constructor',
+      'const Point(this.x, this.y);',
+      '/// Const named constructor',
+      'const Point.zero() : x = 0, y = 0;',
+      '/// Const redirecting factory',
+      'const factory Point.alias() = Point.zero;',
+      '/// External factory',
+      'external factory Point.native();',
+    ];
+
+    for (const expectContent of expectContents) {
+      expect(result).toContain(expectContent);
+    }
+  });
 });
