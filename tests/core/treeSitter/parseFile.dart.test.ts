@@ -197,4 +197,50 @@ describe('parseFile for Dart', () => {
       expect(result).toContain(expectContent);
     }
   });
+
+  test('should parse Dart plain constructor and operator overloads', async () => {
+    const fileContent = `
+      /// Vector class with operators
+      class Vector {
+        final double x;
+        final double y;
+
+        /// Plain constructor
+        Vector(this.x, this.y);
+
+        /// Plus operator
+        Vector operator +(Vector other) => Vector(x + other.x, y + other.y);
+
+        /// Index operator
+        double operator [](int i) => i == 0 ? x : y;
+
+        /// Index assignment operator
+        void operator []=(int i, double v) {}
+
+        /// Equality operator
+        bool operator ==(Object other) => other is Vector && x == other.x && y == other.y;
+      }
+    `;
+    const filePath = 'dummy.dart';
+    const config = {};
+    const result = await parseFile(fileContent, filePath, createMockConfig(config));
+    expect(typeof result).toBe('string');
+
+    const expectContents = [
+      '/// Plain constructor',
+      'Vector(this.x, this.y);',
+      '/// Plus operator',
+      'Vector operator +(Vector other) => Vector(x + other.x, y + other.y);',
+      '/// Index operator',
+      'double operator [](int i) => i == 0 ? x : y;',
+      '/// Index assignment operator',
+      'void operator []=(int i, double v) {}',
+      '/// Equality operator',
+      'bool operator ==(Object other) => other is Vector && x == other.x && y == other.y;',
+    ];
+
+    for (const expectContent of expectContents) {
+      expect(result).toContain(expectContent);
+    }
+  });
 });

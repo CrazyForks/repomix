@@ -41,9 +41,22 @@ export const queryDart = `
   name: (identifier) @name.definition.method) @definition.method
 
 ; Constructor declaration
+; Plain constructors (e.g. 'Animal(this.name);') sit directly under 'declaration',
+; not wrapped by 'method_signature' — so query both shapes.
 (method_signature
  (constructor_signature
   name: (identifier) @name.definition.method)) @definition.method
+
+(declaration
+ (constructor_signature
+  name: (identifier) @name.definition.method)) @definition.method
+
+; Operator overload (e.g. 'int operator +(int o)', 'int operator [](int i)')
+; operator_signature has no identifier name field — the operator token is a
+; (binary_operator) / ([]) / ([]=) child. Capture the whole operator_signature
+; as the name so DefaultParseStrategy emits its full source range.
+(method_signature
+ (operator_signature) @name.definition.method) @definition.method
 
 ; Factory constructor
 ; factory_constructor_signature contains dot-separated identifiers (e.g. Foo.from);
