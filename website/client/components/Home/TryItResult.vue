@@ -2,7 +2,7 @@
 import { computed, ref } from 'vue';
 import type { PackOptions } from '../../composables/usePackOptions';
 import type { TabType } from '../../types/ui';
-import type { FileInfo, PackProgressStage, PackResult } from '../api/client';
+import type { DisplayProgressStage, FileInfo, PackResult } from '../api/client';
 import SupportMessage from './SupportMessage.vue';
 import TryItFileSelection from './TryItFileSelection.vue';
 import TryItLoading from './TryItLoading.vue';
@@ -16,7 +16,7 @@ interface Props {
   errorType?: 'error' | 'warning';
   repositoryUrl?: string;
   packOptions?: PackOptions;
-  progressStage?: PackProgressStage | null;
+  progressStage?: DisplayProgressStage | null;
   progressMessage?: string | null;
 }
 

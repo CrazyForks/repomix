@@ -60,18 +60,20 @@ export class ApiError extends Error {
   }
 }
 
-// `verifying` is a client-only synthetic stage shown while the server is
-// running Turnstile siteverify (before any SSE event arrives). The server
-// never sends this stage; usePackRequest sets it locally between
-// `takeToken()` returning and the first onProgress callback firing, so
-// the loading UI displays a meaningful step instead of a generic "...".
-export type PackProgressStage =
-  | 'verifying'
-  | 'cache-check'
-  | 'cloning'
-  | 'repository-fetch'
-  | 'extracting'
-  | 'processing';
+// Wire-protocol stages — must stay aligned with the server-emitted SSE
+// values (`website/server/src/types.ts:PackProgressStage`). `onProgress`
+// callbacks receive only these, so any new server stage requires a
+// deliberate type update on both sides.
+export type PackProgressStage = 'cache-check' | 'cloning' | 'repository-fetch' | 'extracting' | 'processing';
+
+// Display-only superset. `verifying` is a client-only synthetic stage
+// shown while the server runs Turnstile siteverify (before any SSE event
+// arrives); usePackRequest sets it locally between `takeToken()` returning
+// and the first onProgress callback firing, so the loading UI shows a
+// meaningful step instead of a generic "...". Keeping it out of
+// `PackProgressStage` prevents the wire contract from drifting silently
+// when display-only stages get added or renamed.
+export type DisplayProgressStage = PackProgressStage | 'verifying';
 
 export interface PackStreamCallbacks {
   onProgress?: (stage: PackProgressStage, message?: string) => void;

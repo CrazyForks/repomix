@@ -1,15 +1,15 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import type { PackProgressStage } from '../api/client';
+import type { DisplayProgressStage } from '../api/client';
 
 interface Props {
-  stage?: PackProgressStage | null;
+  stage?: DisplayProgressStage | null;
   message?: string | null;
 }
 
 const props = defineProps<Props>();
 
-const stageMessages: Record<PackProgressStage, string> = {
+const stageMessages: Record<DisplayProgressStage, string> = {
   verifying: 'Verifying request...',
   'cache-check': 'Checking cache...',
   cloning: 'Cloning repository...',

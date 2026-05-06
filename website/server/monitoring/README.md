@@ -28,6 +28,13 @@ field presence so success and failure paths are captured uniformly; the
 `outcome` and `reason` labels on the counter metric drive the breakdown
 in the "outcomes" widget.
 
+Pre-network rejections (`secret_missing`, `missing_token`,
+`token_too_long`) intentionally don't carry `siteverifyDurationMs` —
+they short-circuit before the timer starts, so they're excluded from
+both metrics. Those reject reasons still appear in the existing
+`pack_requests` metric (under `outcome=turnstile_failed`) for
+operational counting, just not in the latency distribution.
+
 ## Apply the dashboard
 
 ```bash

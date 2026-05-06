@@ -1,5 +1,5 @@
 import { computed, onMounted, ref } from 'vue';
-import type { FileInfo, PackProgressStage, PackResult } from '../components/api/client';
+import type { DisplayProgressStage, FileInfo, PackResult } from '../components/api/client';
 import { handlePackRequest } from '../components/utils/requestHandlers';
 import { isValidRemoteValue } from '../components/utils/validation';
 import { parseUrlParameters } from '../utils/urlParams';
@@ -43,7 +43,7 @@ export function usePackRequest() {
   const errorType = ref<'error' | 'warning'>('error');
   const result = ref<PackResult | null>(null);
   const hasExecuted = ref(false);
-  const progressStage = ref<PackProgressStage | null>(null);
+  const progressStage = ref<DisplayProgressStage | null>(null);
   const progressMessage = ref<string | null>(null);
 
   // Request controller for cancellation
@@ -158,6 +158,9 @@ export function usePackRequest() {
       if (isCurrent()) {
         loading.value = false;
         requestController = null;
+        // Clear progressStage so a subsequent submit's brief verifying
+        // window doesn't pick up the previous run's stale state.
+        progressStage.value = null;
         error.value = abortMessage(tokenResult.reason);
         errorType.value = 'warning';
       }
@@ -168,6 +171,7 @@ export function usePackRequest() {
       if (isCurrent()) {
         loading.value = false;
         requestController = null;
+        progressStage.value = null;
         error.value = tokenResult.message;
         errorType.value = 'error';
       }

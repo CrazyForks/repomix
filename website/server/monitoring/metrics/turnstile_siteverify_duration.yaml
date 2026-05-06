@@ -13,10 +13,15 @@ metricDescriptor:
   valueType: DISTRIBUTION
   unit: ms
 bucketOptions:
-  # Exponential buckets covering 1ms to ~32s (16 finite + 1 overflow + 1
-  # underflow). Aligns with the 5s siteverify timeout, with headroom above
-  # to catch any timeout-then-error case that might still report duration.
+  # Exponential buckets tuned for the 100ms-1s SLO band where decisions
+  # actually get made. growthFactor=2 (doubling) only places ~3 boundaries
+  # between 100ms and 1s, leaving p99 reads ±100% of bucket width when
+  # the alert threshold sits at 1s. growthFactor=1.5 with scale=10 places
+  # boundaries at roughly 10, 15, 23, 34, 51, 76, 114, 171, 256, 384,
+  # 577, 865, 1297, 1946ms (8 boundaries inside 100ms-1s). 18 finite
+  # buckets cover 10ms to ~9.85s, comfortably above the 5s siteverify
+  # timeout so timeout cases stay out of overflow.
   exponentialBuckets:
-    numFiniteBuckets: 16
-    growthFactor: 2.0
-    scale: 1.0
+    numFiniteBuckets: 18
+    growthFactor: 1.5
+    scale: 10.0
